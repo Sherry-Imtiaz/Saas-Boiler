@@ -1,0 +1,165 @@
+SaaS Boilerplate Version Context
+Version: v0.3.0
+Date: 2026-05-21
+Build Name: Organisation Module
+
+Purpose
+-------
+This version adds the first real platform module: organisation management.
+The software remains in foundation mode. Authentication and RBAC are not active yet.
+
+Locked Architecture Rule
+------------------------
+Organisation -> Users
+
+A user belongs to one organisation only.
+A user cannot exist without an organisation.
+Every tenant-owned document must include organisation_id.
+The same user email cannot be reused across multiple organisations because email_normalised is globally unique.
+
+Main Database
+-------------
+MongoDB is the main application database.
+Mongoose is used for schema definition, application-level validation and index declaration.
+
+Collections Available
+---------------------
+1. organisations
+2. users
+3. roles
+4. permissions
+5. auditlogs
+
+Organisation Module Scope Added
+-------------------------------
+This version adds internal platform APIs for:
+- Creating organisations
+- Listing organisations
+- Viewing one organisation by id
+- Updating organisation profile/configuration fields
+- Updating organisation status
+
+Organisation API Paths
+----------------------
+POST /api/platform/organisations
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+- Purpose: Create a new organisation tenant
+- Audit action: organisation.create
+
+GET /api/platform/organisations
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+- Purpose: List organisations with pagination, status filter and search
+
+GET /api/platform/organisations/:id
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+- Purpose: View one organisation by id
+
+PATCH /api/platform/organisations/:id
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+- Purpose: Update organisation profile/configuration fields
+- Audit action: organisation.update
+
+PATCH /api/platform/organisations/:id/status
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+- Purpose: Update organisation status to active, inactive or suspended
+- Audit action: organisation.status_update
+
+Validation Rules Added
+----------------------
+Organisation create requires:
+- name
+
+Organisation slug:
+- Optional on create
+- Auto-generated from name if omitted
+- Must be globally unique
+- Must use lowercase letters, numbers and hyphens
+
+Organisation domains:
+- Optional
+- Duplicate domains are rejected in a single request
+- Only one primary domain is allowed
+- If domains exist and no primary is supplied, the first domain becomes primary
+
+Organisation status:
+- active
+- inactive
+- suspended
+
+Audit Logging
+-------------
+Organisation create, profile update and status update actions create audit log entries.
+Because authentication is not active yet, actor_user_id is stored as null for API-driven organisation actions.
+
+APIs Available After This Build
+-------------------------------
+GET /api/health
+- Tag: External
+- Authentication: None
+- Purpose: Health check and MongoDB ready state
+
+GET /api/internal/schema/status
+- Tag: Internal
+- Authentication: None in v0.3.0; will require authentication in later versions
+- Purpose: Shows loaded Mongoose models, declared indexes and estimated document counts
+
+POST /api/platform/organisations
+GET /api/platform/organisations
+GET /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id/status
+- Tag: Internal
+- Authentication: None in v0.3.0; intended future access is platform admin only
+
+GET /api/openapi.json
+- Tag: Internal
+- Authentication: None in v0.3.0
+- Purpose: Returns OpenAPI specification
+
+GET /api/docs
+- Tag: Internal
+- Authentication: None in v0.3.0
+- Purpose: Swagger UI documentation
+
+Swagger / OpenAPI Rule
+----------------------
+Every API created for this software must include Swagger/OpenAPI documentation.
+Each endpoint must show:
+- Internal or External tag
+- Authentication requirement
+- Request schema where applicable
+- Response schema
+- Tenant/organisation access notes where applicable
+
+Static OpenAPI files for this version are saved under:
+- docs/openapi/openapi.v0.3.0.json
+- docs/openapi/openapi.v0.3.0.yaml
+
+Known Limitations
+-----------------
+- Authentication is not built yet.
+- RBAC middleware is not active yet.
+- Organisation APIs are intentionally internal/platform routes but are not protected until auth is added.
+- Organisation-owned user APIs are not built yet.
+- File storage and compute allocation are schema/planning placeholders only.
+- Seeded user cannot log in until native authentication is implemented.
+
+Next Planned Version
+--------------------
+v0.4.0 - Organisation-Owned User Module
+
+Planned scope:
+- Create user under organisation API
+- List users under organisation API
+- View user API
+- Update user API
+- Disable user API
+- Enforce no user without organisation
+- Enforce globally unique email_normalised
+- Swagger/OpenAPI documentation for each new endpoint
+- Updated version context document

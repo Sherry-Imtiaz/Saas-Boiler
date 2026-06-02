@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: SaaS Boilerplate API
+  version: 0.1.1
+  description: Organisation-first SaaS boilerplate API. Every API must be documented with Internal or External tags and explicit authentication requirements.
+servers:
+  - url: http://localhost:4000/api
+    description: Local development API
+tags:
+  - name: External
+    description: APIs intended for use by application clients or external consumers. Authentication requirements are shown per endpoint.
+  - name: Internal
+    description: APIs intended for platform/admin/internal use. These usually require authentication and elevated permissions once auth is introduced.
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Future authenticated API access using a bearer token. Not active in v0.1.1 because authentication starts in a later version.
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - success
+        - service
+        - version
+        - status
+        - database
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: true
+        service:
+          type: string
+          example: saas-boilerplate-api
+        version:
+          type: string
+          example: 0.1.1
+        status:
+          type: string
+          example: ok
+        database:
+          type: object
+          properties:
+            mongo_ready_state:
+              type: number
+              description: Mongoose connection ready state. 1 means connected.
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-05-21T00:00:00.000Z'
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Not found
+paths:
+  /health:
+    get:
+      tags:
+        - External
+      summary: Health check
+      description: Returns API service status, version and MongoDB connection ready state. This endpoint is intentionally unauthenticated so infrastructure and uptime monitors can call it.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API health status returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /openapi.json:
+    get:
+      tags:
+        - Internal
+      summary: OpenAPI specification
+      description: Returns the current OpenAPI specification for the API. In later authenticated versions this can be restricted to internal/admin users.
+      operationId: getOpenApiSpec
+      security: []
+      responses:
+        '200':
+          description: OpenAPI specification returned successfully.
+          content:
+            application/json:
+              schema:
+                type: object

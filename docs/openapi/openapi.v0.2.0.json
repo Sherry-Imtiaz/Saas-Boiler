@@ -1,0 +1,256 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SaaS Boilerplate API",
+    "version": "0.2.0",
+    "description": "Organisation-first SaaS boilerplate API. Every API is documented with Internal or External tags and explicit authentication requirements."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api",
+      "description": "Local development API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "External",
+      "description": "APIs intended for use by application clients or external consumers. Authentication requirements are shown per endpoint."
+    },
+    {
+      "name": "Internal",
+      "description": "APIs intended for platform/admin/internal use. These usually require authentication and elevated permissions once auth is introduced."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Future authenticated API access using a bearer token. Not active in v0.2.0 because authentication starts in v0.5.0."
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "service",
+          "version",
+          "status",
+          "database",
+          "timestamp"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "service": {
+            "type": "string",
+            "example": "saas-boilerplate-api"
+          },
+          "version": {
+            "type": "string",
+            "example": "0.2.0"
+          },
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "mongo_ready_state": {
+                "type": "number",
+                "description": "Mongoose connection ready state. 1 means connected."
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SchemaStatusResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "version",
+          "message",
+          "tenant_model",
+          "authentication",
+          "collection_status",
+          "timestamp"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "version": {
+            "type": "string",
+            "example": "0.2.0"
+          },
+          "message": {
+            "type": "string",
+            "example": "MongoDB schema foundation is loaded."
+          },
+          "tenant_model": {
+            "type": "string",
+            "example": "Organisation -> Users. Users require organisation_id and cannot belong to more than one organisation."
+          },
+          "authentication": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "boolean",
+                "example": false
+              },
+              "note": {
+                "type": "string",
+                "example": "Authentication is introduced in v0.5.0. This internal status route is unauthenticated only during foundation builds."
+              }
+            }
+          },
+          "collection_status": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "example": "Organisation"
+                },
+                "collection": {
+                  "type": "string",
+                  "example": "organisations"
+                },
+                "indexes_declared": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "estimated_document_count": {
+                  "type": "number",
+                  "example": 1
+                }
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "example": "Route not found"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Health check",
+        "description": "Returns API service status, version and MongoDB connection ready state. This endpoint is intentionally unauthenticated so infrastructure and uptime monitors can call it.",
+        "operationId": "getHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API health status returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/schema/status": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "MongoDB schema foundation status",
+        "description": "Returns the loaded schema foundation models, declared indexes and estimated collection counts. This is an internal diagnostic route. Authentication is not active until v0.5.0, so security is currently empty but the route is marked Internal.",
+        "operationId": "getSchemaFoundationStatus",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Schema foundation status returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "OpenAPI specification",
+        "description": "Returns the current OpenAPI specification for the API. In later authenticated versions this can be restricted to internal/admin users.",
+        "operationId": "getOpenApiSpec",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI specification returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Swagger UI documentation",
+        "description": "Interactive Swagger UI for the current API specification. Authentication is not active until v0.5.0.",
+        "operationId": "getSwaggerUi",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML returned successfully."
+          }
+        }
+      }
+    }
+  }
+}

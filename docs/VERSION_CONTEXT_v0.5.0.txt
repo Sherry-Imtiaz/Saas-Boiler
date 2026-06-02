@@ -1,0 +1,162 @@
+SaaS Boilerplate Version Context
+Version: v0.5.0
+Build Name: Native Authentication and Session Foundation
+Date: 2026-05-21
+
+1. Core tenant rule
+
+Organisation -> Users
+
+A user belongs to one organisation only.
+A user cannot exist without organisation_id.
+A user cannot belong to more than one organisation.
+Every tenant-owned document must include organisation_id.
+
+2. Main database
+
+MongoDB is the main software database.
+Mongoose is used for application models.
+
+Current collections:
+- organisations
+- users
+- roles
+- permissions
+- audit_logs
+
+3. Authentication added in v0.5.0
+
+New external auth APIs:
+- POST /api/auth/login
+- GET /api/auth/me
+- POST /api/auth/logout
+
+Authentication behaviour:
+- Login uses email and password.
+- Email is normalised to lowercase.
+- User must exist and use native auth.
+- User status must be active.
+- Organisation status must be active.
+- Successful login returns a signed bearer token.
+- /auth/me validates bearer token and returns current context.
+- /auth/logout records an audit event and tells the client to discard the token.
+
+4. Password hashing
+
+Passwords are hashed using Node.js crypto PBKDF2 SHA-256.
+Stored password_hash format:
+pbkdf2_sha256$iterations$salt$hash
+
+The API never returns password_hash.
+
+5. Bearer token foundation
+
+Tokens are signed using HMAC SHA-256 and JWT_SECRET.
+Token payload includes:
+- sub: user id
+- organisation_id
+- email
+- role_ids
+- iat
+- exp
+
+JWT_EXPIRES_IN_SECONDS controls token lifetime.
+
+6. Environment variables added
+
+apps/api/.env.example now includes:
+- JWT_SECRET
+- JWT_EXPIRES_IN_SECONDS
+
+7. Seed data update
+
+npm run seed now creates or updates the demo admin with native login credentials.
+
+Local development credentials:
+Email: admin@example.com
+Password: ChangeMe123!
+
+The seed output prints the demo credentials.
+
+8. Auth middleware
+
+New middleware:
+apps/api/src/middleware/auth.ts
+
+Exports:
+- requireAuth
+
+requireAuth:
+- extracts bearer token from Authorization header
+- verifies token signature and expiry
+- reloads user from MongoDB
+- checks user is active
+- checks token organisation matches user organisation
+- attaches req.auth
+
+9. New utility files
+
+apps/api/src/utils/password.ts
+- hashPassword
+- verifyPassword
+
+apps/api/src/utils/jwt.ts
+- signJwt
+- verifyJwt
+
+10. Updated user API behaviour
+
+Create/update user APIs now support an optional password field.
+If supplied, the API stores a password_hash.
+The password field is documented in Swagger but never returned.
+
+11. API documentation
+
+Every new API was documented in Swagger/OpenAPI.
+Auth APIs are tagged External.
+Current-user and logout endpoints show BearerAuth requirement.
+Static OpenAPI files included:
+- docs/openapi/openapi.v0.5.0.json
+- docs/openapi/openapi.v0.5.0.yaml
+
+12. Current protected APIs
+
+Protected in v0.5.0:
+- GET /api/auth/me
+- POST /api/auth/logout
+
+Not yet RBAC-protected:
+- Internal platform organisation APIs
+- Internal platform organisation-owned user APIs
+- Internal schema status API
+
+Reason:
+RBAC middleware and route permissions are planned for v0.6.0.
+
+13. Changelog summary
+
+v0.5.0 added:
+- Native login
+- PBKDF2 password hashing
+- Signed bearer token generation and validation
+- Auth middleware foundation
+- Current user context API
+- Logout acknowledgement API
+- Disabled user login blocking
+- Inactive organisation login blocking
+- Login/logout audit logs
+- Seeded demo admin credentials
+- Updated Swagger/OpenAPI documentation
+- Updated version context documentation
+
+14. Next build
+
+v0.6.0 - Roles and Permissions / RBAC Foundation
+
+Planned scope:
+- Role management APIs
+- Permission catalogue API
+- Permission-check middleware
+- Authenticated internal route protection
+- Organisation-scoped permission resolution
+- Swagger docs for RBAC APIs

@@ -1,0 +1,110 @@
+SaaS Boilerplate Version Context
+================================
+
+Version: v0.12.0
+Build Name: Complete OIDC / SSO Build
+Source Baseline: v0.11.0 - Audit Logging Expansion and Security Events
+
+Canonical sequence note
+-----------------------
+This version continues the original SaaS Boilerplate path from v0.11.0.
+The out-of-order Testing Foundations build is not part of this canonical sequence.
+Testing Foundations remains planned for v0.16.0.
+
+Current architecture rule
+-------------------------
+Organisation -> Users.
+A user belongs to exactly one organisation.
+A user cannot exist without an organisation.
+Tenant-owned data must remain organisation-scoped.
+
+What v0.12.0 adds
+-----------------
+- Active OIDC authorization-code + PKCE login start route.
+- Active OIDC callback route using GET and POST variants.
+- Stateless signed OIDC state payload with nonce, code verifier and expiry.
+- OIDC discovery document resolution.
+- Manual endpoint fallback when discovery_url is not configured.
+- Authorization code token exchange.
+- RS256 id_token signature verification using JWKS.
+- id_token issuer, audience, expiry, nonce and verified-email validation.
+- User lookup and auto-provisioning for organisation-scoped OIDC users.
+- OIDC subject/provider fields on the User auth model.
+- IdP-managed MFA token context when external MFA is enforced.
+- External group-to-role mapping based on organisation SSO config.
+- OIDC provider logout URL helper route.
+- Public SSO options now point to the active SSO start route.
+- OIDC SSO documentation in docs/OIDC_SSO_BUILD.md.
+- Updated Swagger/OpenAPI runtime spec and static OpenAPI JSON/YAML.
+- Updated README and changelog.
+
+New API routes
+--------------
+Public/no-auth OIDC flow routes:
+- GET  /api/auth/sso/:organisationSlug/start
+- GET  /api/auth/sso/callback
+- POST /api/auth/sso/callback
+- GET  /api/auth/sso/:organisationSlug/logout
+
+Existing SSO configuration routes retained:
+- GET   /api/org/sso-config/supported-providers
+- GET   /api/org/sso-config
+- PATCH /api/org/sso-config
+- POST  /api/org/sso-config/test
+
+Environment additions
+---------------------
+- OIDC_STATE_SECRET
+- OIDC_STATE_EXPIRES_IN_SECONDS
+- OIDC_HTTP_TIMEOUT_MS
+- OIDC_FRONTEND_CALLBACK_URL
+- OIDC_ALLOW_PLAIN_CLIENT_SECRET
+
+Secret reference strategy
+-------------------------
+Do not store raw client secrets in MongoDB.
+Use client_secret_ref values such as:
+- env://VARIABLE_NAME
+- env:VARIABLE_NAME
+- secret://local/name
+- plain://secret only for development when explicitly enabled
+
+Security/audit events
+---------------------
+The build logs:
+- auth.oidc.start
+- auth.oidc.login.success
+- auth.oidc.user_provisioned
+
+Swagger/OpenAPI rule
+--------------------
+Every API must be represented in Swagger/OpenAPI and show authentication requirements.
+Internal/External classification remains endpoint metadata while the functional tags Auth and SSO are added for the OIDC build.
+
+Validation performed
+--------------------
+- npm install --ignore-scripts
+- npm run build -w apps/api
+- npm run build -w apps/web
+
+Known limitations / later hardening
+-----------------------------------
+- SAML remains stored metadata only.
+- Only RS256 id_token signature validation is implemented for OIDC.
+- Callback frontend redirect mode can append the access token to a redirect URL when OIDC_FRONTEND_CALLBACK_URL is set; production deployments should replace this with secure session/cookie handling.
+- Dedicated failure event logging for every callback failure should be expanded in the API security hardening build.
+- Token revocation/introspection for external IdP sessions is not implemented.
+
+Next canonical build
+--------------------
+v0.13.0 - API Security Hardening + Swagger Domain Refactor
+
+Canonical path to v0.16.0
+-------------------------
+v0.10.2 - Image Handling and Branding Asset Migration
+v0.11.0 - Audit Logging Expansion and Security Events
+v0.12.0 - Complete OIDC / SSO Build
+v0.13.0 - API Security Hardening + Swagger Domain Refactor
+v0.14.0 - Seed and Installer Scripts
+v0.15.0 - Deployment Readiness
+v0.16.0 - Testing Foundations

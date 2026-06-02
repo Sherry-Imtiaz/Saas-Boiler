@@ -1,0 +1,61 @@
+SaaS Boilerplate Version Context
+Version: v1.0.0
+Build Name: Stable Release
+Base Version: v0.19.0 - Production UI Rebuild
+Release Date: 2026-05-22
+
+Purpose
+v1.0.0 is the first stable release of the SaaS Boilerplate. It consolidates the backend foundation, production-style frontend, tenant administration, platform administration, local validation scripts, testing foundation, deployment readiness and release documentation into a single final baseline.
+
+This build is intentionally a release consolidation build. It does not introduce a major new functional module after v0.19.0. The focus is version alignment, release metadata, final documentation, OpenAPI static exports and validation.
+
+Included Foundation
+- Organisation-first tenancy model: Organisation -> Users.
+- Native authentication with JWT user session tokens.
+- OIDC / SSO authorization-code + PKCE login flow.
+- RBAC roles and permissions.
+- Personal Access Tokens and Organisation API Tokens.
+- Organisation branding, login customisation and branding assets.
+- FileAsset-backed local/Azure-compatible storage abstraction.
+- Feature entitlements and plan/subscription readiness.
+- Audit logs and security events.
+- API security hardening and domain-based Swagger/OpenAPI grouping.
+- Seed and installer scripts for Windows-friendly local setup.
+- Deployment readiness checks and liveness/readiness health endpoints.
+- Unit and integration testing foundations.
+- Production-style React UI with Organisation Owner and Platform Owner workspaces.
+
+Release Changes in v1.0.0
+- Updated package, API, web, health, schema and script version metadata to 1.0.0.
+- Added final release notes and production release checklist documentation.
+- Added v1.0.0 static OpenAPI JSON/YAML files.
+- Updated README and CHANGELOG to mark the project as a stable release baseline.
+- Preserved all v0.19.0 production UI work and all previous backend modules.
+
+Validation Target
+- npm install --ignore-scripts --no-audit --no-fund
+- npm run build
+- npm test
+- node scripts/setup-local.mjs
+- npm run check:deployment -- --skip-db
+
+Local Run Sequence
+1. npm run setup:local
+2. npm install --registry=https://registry.npmjs.org/
+3. docker compose up -d
+4. npm run seed
+5. npm run check:install
+6. npm run validate:local
+7. npm run dev
+
+Default Development Login
+Organisation slug: demo-organisation
+Email: admin@example.com
+Password: ChangeMe123!
+
+Next Recommended Direction
+After v1.0.0, future work should be treated as post-release product evolution, such as:
+- v1.1.0 - UI Stabilisation and UX Refinement
+- v1.2.0 - Advanced Platform Admin User Management
+- v1.3.0 - Optional Compute Allocation Module
+- v1.4.0 - Billing/Subscription Integration Readiness

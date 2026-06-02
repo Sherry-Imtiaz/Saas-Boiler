@@ -1,0 +1,135 @@
+SaaS Boilerplate Version Context
+Version: v0.2.0
+Date: 2026-05-21
+Build Name: MongoDB Schema Foundation
+
+Purpose
+-------
+This version adds the core MongoDB/Mongoose schema foundation for the SaaS boilerplate.
+The software remains in foundation mode. Business features are not yet being added.
+
+Locked Architecture Rule
+------------------------
+Organisation -> Users
+
+A user belongs to one organisation only.
+A user cannot exist without an organisation.
+Every tenant-owned document must include organisation_id.
+The same user email cannot be reused across multiple organisations because email_normalised is globally unique.
+
+Main Database
+-------------
+MongoDB is the main application database.
+Mongoose is used for schema definition, application-level validation and index declaration.
+
+Collections Added
+-----------------
+1. organisations
+2. users
+3. roles
+4. permissions
+5. auditlogs
+
+Model Summary
+-------------
+OrganisationModel:
+- Root tenant entity.
+- Stores profile, slug, status, plan, branding, domains, auth_config, features, compute allocation placeholder and storage config.
+- Unique slug index.
+
+UserModel:
+- Organisation-owned user.
+- Requires organisation_id.
+- Has globally unique email_normalised.
+- Stores auth metadata but native login is not active until v0.5.0.
+- Has role_ids for organisation-scoped roles.
+
+RoleModel:
+- Organisation-scoped role.
+- Requires organisation_id.
+- Unique by organisation_id + name.
+- Stores permission_keys directly for simple MongoDB access.
+
+PermissionModel:
+- Global permission catalogue.
+- Unique permission key.
+- Used by organisation roles.
+
+AuditLogModel:
+- Organisation-scoped audit log.
+- Requires organisation_id.
+- Stores actor_user_id, action, resource type, resource id, details, IP address and user agent.
+
+Seed Script
+-----------
+A seed script has been added:
+
+npm run seed
+
+It creates:
+- Default permission catalogue
+- Demo Organisation
+- Organisation Admin role
+- Viewer role
+- Demo Admin user
+- Initial audit log event
+
+Important: Native authentication is not active until v0.5.0. The seeded Demo Admin user has no usable password yet.
+
+APIs Added / Updated
+--------------------
+GET /api/health
+- Tag: External
+- Authentication: None
+- Purpose: Health check and MongoDB ready state
+
+GET /api/internal/schema/status
+- Tag: Internal
+- Authentication: None in v0.2.0; will require authentication in later versions
+- Purpose: Shows loaded Mongoose models, declared indexes and estimated document counts
+
+GET /api/openapi.json
+- Tag: Internal
+- Authentication: None in v0.2.0
+- Purpose: Returns OpenAPI specification
+
+GET /api/docs
+- Tag: Internal
+- Authentication: None in v0.2.0
+- Purpose: Swagger UI documentation
+
+Swagger / OpenAPI Rule
+----------------------
+Every API created for this software must include Swagger/OpenAPI documentation.
+Each endpoint must show:
+- Internal or External tag
+- Authentication requirement
+- Request schema where applicable
+- Response schema
+- Tenant/organisation access notes where applicable
+
+Static OpenAPI files for this version are saved under:
+- docs/openapi/openapi.v0.2.0.json
+- docs/openapi/openapi.v0.2.0.yaml
+
+Known Limitations
+-----------------
+- Authentication is not built yet.
+- RBAC middleware is not active yet.
+- Organisation CRUD APIs are not built yet.
+- File storage and compute allocation are schema/planning placeholders only.
+- Seeded user cannot log in until native authentication is implemented.
+
+Next Planned Version
+--------------------
+v0.3.0 - Organisation Module
+
+Planned scope:
+- Create organisation API
+- List organisations API
+- View organisation by id API
+- Update organisation profile API
+- Update organisation status API
+- Platform/admin route structure
+- Swagger/OpenAPI documentation for each new endpoint
+- Updated version context document

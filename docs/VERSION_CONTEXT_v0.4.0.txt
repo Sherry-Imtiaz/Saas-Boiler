@@ -1,0 +1,187 @@
+SaaS Boilerplate Version Context
+Version: v0.4.0
+Date: 2026-05-21
+Build Name: Organisation-Owned User Module
+
+Purpose
+-------
+This version adds organisation-owned user management APIs.
+The software remains in foundation mode. Authentication and RBAC middleware are not active yet.
+
+Locked Architecture Rule
+------------------------
+Organisation -> Users
+
+A user belongs to one organisation only.
+A user cannot exist without an organisation.
+Every tenant-owned document must include organisation_id.
+The same user email cannot be reused across multiple organisations because email_normalised is globally unique.
+
+Main Database
+-------------
+MongoDB is the main application database.
+Mongoose is used for schema definition, application-level validation and index declaration.
+
+Collections Available
+---------------------
+1. organisations
+2. users
+3. roles
+4. permissions
+5. auditlogs
+
+Organisation-Owned User Module Scope Added
+------------------------------------------
+This version adds internal platform APIs for:
+- Creating a user under an organisation
+- Listing users under an organisation
+- Viewing one user under an organisation
+- Updating user profile/auth type/roles under an organisation
+- Updating user status under an organisation
+
+User API Paths
+--------------
+POST /api/platform/organisations/:organisationId/users
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+- Purpose: Create a user under a specific organisation
+- Audit action: user.create
+
+GET /api/platform/organisations/:organisationId/users
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+- Purpose: List users under a specific organisation with pagination, search, status filter and role filter
+
+GET /api/platform/organisations/:organisationId/users/:userId
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+- Purpose: View one user under a specific organisation
+
+PATCH /api/platform/organisations/:organisationId/users/:userId
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+- Purpose: Update user profile/auth type/roles under a specific organisation
+- Audit action: user.update
+
+PATCH /api/platform/organisations/:organisationId/users/:userId/status
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+- Purpose: Update user status to invited, active or disabled
+- Audit action: user.status_update
+
+Validation Rules Added
+----------------------
+User create requires:
+- email
+
+User email:
+- Normalised to lowercase
+- Stored in email and email_normalised
+- email_normalised is globally unique across all organisations
+
+User organisation:
+- organisationId must be provided in the URL path
+- organisation must exist
+- user.organisation_id is always set from the organisation path
+- request body cannot create a user without organisation_id
+
+User roles:
+- role_ids are optional
+- If role_ids are supplied, every role must belong to the same organisation
+- If role_ids are omitted, organisation.auth_config.default_role_id is applied if present and valid
+
+User status values:
+- invited
+- active
+- disabled
+
+User auth type values:
+- native
+- oidc
+- saml
+
+Password Handling
+-----------------
+Native login is not active yet.
+Created native users have password_hash set to null until v0.5.0 implements password hashing and login.
+
+Audit Logging
+-------------
+User create, profile update and status update actions create audit log entries.
+Because authentication is not active yet, actor_user_id is stored as null for API-driven user actions.
+
+APIs Available After This Build
+-------------------------------
+GET /api/health
+- Tag: External
+- Authentication: None
+- Purpose: Health check and MongoDB ready state
+
+GET /api/internal/schema/status
+- Tag: Internal
+- Authentication: None in v0.4.0; will require authentication in later versions
+- Purpose: Shows loaded Mongoose models, declared indexes and estimated document counts
+
+POST /api/platform/organisations
+GET /api/platform/organisations
+GET /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id/status
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin only
+
+POST /api/platform/organisations/:organisationId/users
+GET /api/platform/organisations/:organisationId/users
+GET /api/platform/organisations/:organisationId/users/:userId
+PATCH /api/platform/organisations/:organisationId/users/:userId
+PATCH /api/platform/organisations/:organisationId/users/:userId/status
+- Tag: Internal
+- Authentication: None in v0.4.0; intended future access is platform admin or organisation admin
+
+GET /api/openapi.json
+- Tag: Internal
+- Authentication: None in v0.4.0
+- Purpose: Returns OpenAPI specification
+
+GET /api/docs
+- Tag: Internal
+- Authentication: None in v0.4.0
+- Purpose: Swagger UI documentation
+
+Swagger / OpenAPI Rule
+----------------------
+Every API created for this software must include Swagger/OpenAPI documentation.
+Each endpoint must show:
+- Internal or External tag
+- Authentication requirement
+- Request schema where applicable
+- Response schema
+- Tenant/organisation access notes where applicable
+
+Static OpenAPI files for this version are saved under:
+- docs/openapi/openapi.v0.4.0.json
+- docs/openapi/openapi.v0.4.0.yaml
+
+Known Limitations
+-----------------
+- Authentication is not built yet.
+- RBAC middleware is not active yet.
+- Organisation and user APIs are intentionally internal/platform routes but are not protected until auth is added.
+- Seeded user cannot log in until native authentication is implemented.
+- File storage and compute allocation are schema/planning placeholders only.
+
+Next Planned Version
+--------------------
+v0.5.0 - Native Authentication and Session Foundation
+
+Planned scope:
+- Native email/password login
+- Password hashing
+- JWT or session token generation
+- Authenticated user context
+- Auth middleware
+- Logout endpoint
+- Current user endpoint
+- Disabled user login blocking
+- Swagger/OpenAPI documentation for each new endpoint
+- Updated version context document

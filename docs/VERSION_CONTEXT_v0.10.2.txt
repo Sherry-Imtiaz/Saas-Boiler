@@ -1,0 +1,78 @@
+SaaS Boilerplate - Version Context
+Version: v0.10.2
+Build Name: Image Handling and Branding Asset Migration
+
+Core architecture rule:
+Organisation -> Users. Users belong to exactly one organisation and cannot exist without organisation_id. Every tenant-owned document must be scoped to organisation_id.
+
+Development documentation rule:
+Every API must be represented in Swagger/OpenAPI, tagged as Internal or External, and show authentication requirements. Each build zip includes static OpenAPI JSON/YAML plus this version context document.
+
+What was added in v0.10.2:
+- Branding asset uploads now create FileAsset records instead of standalone local files.
+- Organisation branding fields now store both public URL fields and linked FileAsset id fields:
+  - logo_file_id
+  - favicon_file_id
+  - login_background_file_id
+  - sidebar_logo_file_id
+  - email_logo_file_id
+- Public branding asset URLs now use /api/public/branding-assets/:fileId.
+- Branding asset content is stored through the active storage provider, supporting local development storage, Azurite and Azure Blob Storage.
+- Branding asset uploads capture image metadata where possible:
+  - width
+  - height
+  - format
+  - asset_type
+  - alt_text
+- Branding asset delete now clears the organisation branding field and archives the linked FileAsset when present.
+- Legacy v0.7.1 local branding asset route remains available for backwards compatibility only.
+- FileAsset formatting now returns public_url for FileAsset records marked as branding assets.
+- React branding UI wording was updated to reflect provider-backed FileAsset storage.
+
+New or updated API behaviour:
+- POST /api/org/branding/assets/:assetType now creates a FileAsset and links it to organisation branding.
+- DELETE /api/org/branding/assets/:assetType now clears the branding reference and archives the linked FileAsset where present.
+- GET /api/public/branding-assets/:fileId serves active provider-backed branding image FileAsset content publicly.
+- GET /api/public/assets/organisations/:organisationId/branding/:fileName remains as a legacy local route.
+
+Authentication and permissions:
+- Branding asset upload/delete APIs remain Internal.
+- Required authentication: UserSessionAuth or PersonalAccessTokenAuth.
+- Required permission: organisation.branding.manage.
+- Public branding asset serving is External with no authentication, but only active FileAsset image records marked as branding assets are served.
+
+Storage design:
+- Local provider remains default.
+- Azure Blob provider remains supported from v0.10.1.
+- Logical storage keys remain provider-neutral:
+  organisations/{organisation_id}/files/{file_id}/{file_name}
+
+Files changed in this version:
+- apps/api/src/modules/organisationBranding/organisationBranding.routes.ts
+- apps/api/src/modules/public/publicOrganisationTheme.routes.ts
+- apps/api/src/models/organisation.model.ts
+- apps/api/src/utils/fileAssets.ts
+- apps/api/src/utils/imageMetadata.ts
+- apps/api/src/docs/openapi.ts
+- apps/api/src/modules/schema/schema.routes.ts
+- apps/web/src/services/api.ts
+- apps/web/src/App.tsx
+- docs/openapi/openapi.v0.10.2.json
+- docs/openapi/openapi.v0.10.2.yaml
+- docs/ARCHITECTURE.md
+- CHANGELOG.md
+- README.md
+
+Validation performed:
+- npm install
+- npm run build
+
+Known limitations:
+- Image metadata extraction is lightweight and dependency-free; it supports common PNG/JPEG/WebP/SVG cases but is not a full image processing pipeline.
+- No thumbnail generation or resizing yet.
+- No virus scanning yet.
+- Azure CDN/SAS/private signed access is not implemented yet.
+- Branding assets are public by design because they are used by login/theme pages.
+
+Next recommended build:
+v0.11.0 - Compute Allocation

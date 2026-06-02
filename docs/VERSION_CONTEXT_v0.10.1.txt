@@ -1,0 +1,51 @@
+SaaS Boilerplate Version Context - v0.10.1
+=========================================
+
+Build: v0.10.1 - Azure Blob Storage Provider Abstraction
+Base: v0.10.0 - File Asset Foundation
+
+Core tenant rule remains unchanged:
+- Organisation -> Users
+- Users cannot exist without organisation_id
+- Users cannot belong to more than one organisation
+- Tenant-owned data must be scoped by organisation_id
+
+What changed in v0.10.1:
+- File storage now uses a provider interface instead of direct local filesystem calls.
+- Local storage remains the default provider for development.
+- Azure Blob Storage is now supported as the primary cloud storage direction for Azure deployments.
+- Azurite is included in Docker Compose for local Azure Blob-compatible testing.
+- File upload, download and archive/delete flows now call the configured storage provider.
+- FileAsset.storage_provider now supports local and azure_blob.
+- Environment configuration includes STORAGE_PROVIDER, STORAGE_LOCAL_ROOT, AZURE_STORAGE_CONNECTION_STRING, AZURE_STORAGE_CONTAINER_NAME, AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_USE_AZURITE.
+- Schema status now returns storage provider configuration summary.
+
+Storage provider behaviour:
+- STORAGE_PROVIDER=local stores files under the configured local root.
+- STORAGE_PROVIDER=azure_blob stores files in the configured Azure Blob container using the same logical storage key.
+- Logical storage key format stays provider-neutral:
+  organisations/{organisation_id}/files/{file_id}/{file_name}
+
+Security/access model:
+- File APIs remain organisation-scoped.
+- File APIs still require feature: file_uploads.
+- File APIs still require permissions: files.view, files.upload, files.delete.
+- Plan limits still apply to max_file_size_mb and max_storage_gb before upload.
+- All file operations continue to write audit logs.
+
+Development notes:
+- Local provider is recommended for simple local development.
+- Azurite can be used to test Azure Blob-style storage locally.
+- Production Azure deployments should use Azure Blob Storage with a secure connection string or future managed identity support.
+
+Swagger/OpenAPI:
+- OpenAPI version updated to v0.10.1.
+- File endpoints document provider-based storage behaviour.
+- Static OpenAPI JSON/YAML files included under docs/openapi.
+
+Validation performed:
+- npm install completed successfully.
+- npm run build completed successfully for API and web.
+
+Next planned build:
+- v0.10.2 - Image Handling and Branding Asset Migration

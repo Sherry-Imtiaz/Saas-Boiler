@@ -1,0 +1,3817 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SaaS Boilerplate API",
+    "version": "0.6.4",
+    "description": "Organisation-first SaaS boilerplate API. v0.6.4 adds the Internal Admin UI foundation on top of RBAC, user session tokens, Personal Access Tokens and Organisation API Tokens. No new backend APIs are introduced in v0.6.4; every existing API remains documented with Internal or External tags and explicit authentication requirements."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api",
+      "description": "Local development API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "External",
+      "description": "APIs intended for application clients or external consumers. Authentication requirements are shown per endpoint."
+    },
+    {
+      "name": "Internal",
+      "description": "APIs intended for platform/admin/internal use. These usually require authentication and elevated permissions once auth is introduced."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Generic bearer auth scheme. v0.6.3 supports user session tokens, scoped personal access tokens, and organisation API tokens."
+      },
+      "UserSessionAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT user_session_token",
+        "description": "Short-lived logged-in user token. Used by the frontend, admin UI and Postman during development."
+      },
+      "PersonalAccessTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT personal_access_token",
+        "description": "Active from v0.6.3. Long-lived user-owned scoped bearer token for Postman, scripts and user automation."
+      },
+      "OrganisationApiTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT organisation_api_token",
+        "description": "Active in v0.6.3. Organisation-owned token for external/system-to-system integrations. Uses external audience and external:* scopes."
+      },
+      "ServiceAccountTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Service Account Token",
+        "description": "Reserved for later service identity requirements."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "example": "Route not found"
+              },
+              "details": {
+                "type": "object"
+              },
+              "stack": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "service",
+          "version",
+          "status",
+          "database",
+          "timestamp"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "service": {
+            "type": "string",
+            "example": "saas-boilerplate-api"
+          },
+          "version": {
+            "type": "string",
+            "example": "0.6.4"
+          },
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "mongo_ready_state": {
+                "type": "number",
+                "description": "Mongoose connection ready state. 1 means connected."
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "total_pages": {
+            "type": "integer",
+            "example": 1
+          }
+        }
+      },
+      "OrganisationDomain": {
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "example": "example.com"
+          },
+          "verified": {
+            "type": "boolean",
+            "example": false
+          },
+          "is_primary": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "OrganisationPlan": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "foundation"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Foundation"
+          },
+          "billing_status": {
+            "type": "string",
+            "nullable": true,
+            "example": "not_configured"
+          }
+        }
+      },
+      "OrganisationBranding": {
+        "type": "object",
+        "properties": {
+          "logo_url": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "primary_colour": {
+            "type": "string",
+            "nullable": true,
+            "example": "#1A73E8"
+          },
+          "secondary_colour": {
+            "type": "string",
+            "nullable": true,
+            "example": "#111827"
+          },
+          "login_title": {
+            "type": "string",
+            "nullable": true,
+            "example": "Welcome to Example Organisation"
+          },
+          "login_subtitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Sign in to continue"
+          },
+          "login_background_url": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "support_email": {
+            "type": "string",
+            "nullable": true,
+            "example": "support@example.com"
+          }
+        }
+      },
+      "OrganisationStorage": {
+        "type": "object",
+        "properties": {
+          "storage_provider": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "storage_prefix": {
+            "type": "string",
+            "nullable": true,
+            "example": "organisations/example-organisation/"
+          },
+          "max_storage_gb": {
+            "type": "number",
+            "nullable": true,
+            "example": 20
+          }
+        }
+      },
+      "Organisation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "665000000000000000000001"
+          },
+          "_id": {
+            "type": "string",
+            "example": "665000000000000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Example Organisation"
+          },
+          "slug": {
+            "type": "string",
+            "example": "example-organisation"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended"
+            ],
+            "example": "active"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/OrganisationPlan"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/OrganisationBranding"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganisationDomain"
+            }
+          },
+          "auth_config": {
+            "type": "object",
+            "description": "Organisation auth configuration placeholder. Full SSO support is planned for later versions."
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "example": {
+              "dashboard": true,
+              "file_uploads": false
+            }
+          },
+          "compute_allocation": {
+            "type": "object",
+            "description": "Future compute allocation placeholder."
+          },
+          "storage": {
+            "$ref": "#/components/schemas/OrganisationStorage"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateOrganisationRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Example Organisation"
+          },
+          "slug": {
+            "type": "string",
+            "example": "example-organisation"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended"
+            ],
+            "default": "active"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/OrganisationPlan"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/OrganisationBranding"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganisationDomain"
+            }
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "storage": {
+            "$ref": "#/components/schemas/OrganisationStorage"
+          }
+        }
+      },
+      "UpdateOrganisationRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Updated Organisation"
+          },
+          "slug": {
+            "type": "string",
+            "example": "updated-organisation"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/OrganisationPlan"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/OrganisationBranding"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganisationDomain"
+            }
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "storage": {
+            "$ref": "#/components/schemas/OrganisationStorage"
+          }
+        }
+      },
+      "UpdateOrganisationStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended"
+            ],
+            "example": "active"
+          }
+        }
+      },
+      "OrganisationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Organisation created successfully."
+          },
+          "data": {
+            "$ref": "#/components/schemas/Organisation"
+          }
+        }
+      },
+      "OrganisationListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organisation"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "avatar_url": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "+61 400 000 000"
+          },
+          "timezone": {
+            "type": "string",
+            "nullable": true,
+            "example": "Australia/Melbourne"
+          }
+        }
+      },
+      "UserAuth": {
+        "type": "object",
+        "properties": {
+          "auth_type": {
+            "type": "string",
+            "enum": [
+              "native",
+              "oidc",
+              "saml"
+            ],
+            "example": "native"
+          },
+          "mfa_enabled": {
+            "type": "boolean",
+            "example": false
+          },
+          "last_login_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "665000000000000000000101"
+          },
+          "_id": {
+            "type": "string",
+            "example": "665000000000000000000101"
+          },
+          "organisation_id": {
+            "type": "string",
+            "example": "665000000000000000000001"
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "email_normalised": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "first_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Demo"
+          },
+          "last_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "User"
+          },
+          "display_name": {
+            "type": "string",
+            "example": "Demo User"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "active",
+              "disabled"
+            ],
+            "example": "invited"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/UserAuth"
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "665000000000000000000201"
+            ]
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "new.user@example.com"
+          },
+          "first_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "New"
+          },
+          "last_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "User"
+          },
+          "display_name": {
+            "type": "string",
+            "example": "New User"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "active",
+              "disabled"
+            ],
+            "default": "invited"
+          },
+          "auth_type": {
+            "type": "string",
+            "enum": [
+              "native",
+              "oidc",
+              "saml"
+            ],
+            "default": "native"
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 200,
+            "description": "Optional native-login password. Required for the user to log in with native authentication. Not returned by any API.",
+            "example": "ChangeMe123!"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "updated.user@example.com"
+          },
+          "first_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Updated"
+          },
+          "last_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "User"
+          },
+          "display_name": {
+            "type": "string",
+            "example": "Updated User"
+          },
+          "auth_type": {
+            "type": "string",
+            "enum": [
+              "native",
+              "oidc",
+              "saml"
+            ]
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 200,
+            "description": "Optional native-login password. Required for the user to log in with native authentication. Not returned by any API.",
+            "example": "ChangeMe123!"
+          }
+        }
+      },
+      "UpdateUserStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "active",
+              "disabled"
+            ],
+            "example": "disabled"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "User created successfully under organisation."
+          },
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "UserListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "SchemaStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "version": {
+            "type": "string",
+            "example": "0.6.4"
+          },
+          "message": {
+            "type": "string",
+            "example": "MongoDB schema foundation is loaded and protected by RBAC."
+          },
+          "tenant_model": {
+            "type": "string"
+          },
+          "authentication": {
+            "type": "object"
+          },
+          "collection_status": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "admin@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "ChangeMe123!"
+          }
+        }
+      },
+      "AuthOrganisation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "64f000000000000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Demo Organisation"
+          },
+          "slug": {
+            "type": "string",
+            "example": "demo-organisation"
+          },
+          "status": {
+            "type": "string",
+            "example": "active"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/OrganisationBranding"
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "AuthRoleSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "64f000000000000000000010"
+          },
+          "name": {
+            "type": "string",
+            "example": "Organisation Admin"
+          },
+          "is_system_role": {
+            "type": "boolean",
+            "example": true
+          },
+          "permission_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "organisation.view",
+              "users.view"
+            ]
+          }
+        }
+      },
+      "TokenContext": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "user_session_token",
+              "personal_access_token",
+              "organisation_api_token",
+              "service_account_token"
+            ],
+            "example": "user_session_token"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "external",
+              "service"
+            ],
+            "example": "internal"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "internal:user",
+              "auth:me",
+              "rbac:permissions"
+            ]
+          },
+          "token_id": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "auth_scheme": {
+            "type": "string",
+            "example": "BearerAuth"
+          }
+        }
+      },
+      "TokenPolicyItem": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "type": "string",
+            "example": "personal_access_token"
+          },
+          "audience": {
+            "type": "string",
+            "example": "internal"
+          },
+          "description": {
+            "type": "string"
+          },
+          "default_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "example": "active_in_v0.6.3"
+          }
+        }
+      },
+      "TokenContextResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "current_token": {
+                "$ref": "#/components/schemas/TokenContext"
+              },
+              "user_context": {
+                "type": "object",
+                "properties": {
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "organisation_id": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "example": "admin@example.com"
+                  },
+                  "role_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "role_names": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "permission_keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "token_policy": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TokenPolicyItem"
+                }
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Login successful."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token_type": {
+                "type": "string",
+                "example": "Bearer"
+              },
+              "access_token": {
+                "type": "string",
+                "description": "JWT-style bearer token for authenticated API calls."
+              },
+              "expires_in": {
+                "type": "integer",
+                "example": 3600
+              },
+              "token_context": {
+                "$ref": "#/components/schemas/TokenContext"
+              },
+              "user": {
+                "$ref": "#/components/schemas/User"
+              },
+              "organisation": {
+                "$ref": "#/components/schemas/AuthOrganisation"
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AuthRoleSummary"
+                }
+              },
+              "permission_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "organisation.view",
+                  "users.view"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "AuthMeResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/User"
+              },
+              "organisation": {
+                "$ref": "#/components/schemas/AuthOrganisation"
+              },
+              "token_context": {
+                "$ref": "#/components/schemas/TokenContext"
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AuthRoleSummary"
+                }
+              },
+              "permission_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "LogoutResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Logout acknowledged. Remove the bearer token from the client."
+          }
+        }
+      },
+      "Permission": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "665000000000000000000010"
+          },
+          "key": {
+            "type": "string",
+            "example": "roles.manage"
+          },
+          "module": {
+            "type": "string",
+            "example": "roles"
+          },
+          "action": {
+            "type": "string",
+            "example": "manage"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Create and update organisation roles"
+          },
+          "is_active": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "665000000000000000000020"
+          },
+          "_id": {
+            "type": "string",
+            "example": "665000000000000000000020"
+          },
+          "organisation_id": {
+            "type": "string",
+            "example": "665000000000000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Organisation Admin"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Default administrator role for the organisation"
+          },
+          "is_system_role": {
+            "type": "boolean",
+            "example": true
+          },
+          "permission_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "organisation.view",
+              "users.view",
+              "roles.manage"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateRoleRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Support Agent"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Can view users and files"
+          },
+          "permission_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "organisation.view",
+              "users.view",
+              "files.view"
+            ]
+          }
+        }
+      },
+      "UpdateRoleRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Senior Support Agent"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Can view and manage selected organisation data"
+          },
+          "permission_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "organisation.view",
+              "users.view",
+              "roles.view",
+              "files.view"
+            ]
+          }
+        }
+      },
+      "PersonalAccessToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organisation_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "token_type": {
+            "type": "string",
+            "example": "personal_access_token"
+          },
+          "token_name": {
+            "type": "string",
+            "example": "Postman Testing Token"
+          },
+          "token_preview": {
+            "type": "string",
+            "nullable": true,
+            "example": "eyJhbGciOiJI...abc12345"
+          },
+          "audience": {
+            "type": "string",
+            "example": "internal"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "organisation.view",
+              "users.view"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked",
+              "expired"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreatePersonalAccessTokenRequest": {
+        "type": "object",
+        "required": [
+          "token_name"
+        ],
+        "properties": {
+          "token_name": {
+            "type": "string",
+            "example": "Postman Testing Token"
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "default": 90,
+            "example": 30
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of permission-key scopes. If omitted, the token receives the current user permission keys. Scopes cannot exceed current user permissions.",
+            "example": [
+              "organisation.view",
+              "users.view",
+              "roles.view"
+            ]
+          }
+        }
+      },
+      "CreatePersonalAccessTokenResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token_type": {
+                "type": "string",
+                "example": "Bearer"
+              },
+              "access_token": {
+                "type": "string",
+                "description": "Raw bearer token. Returned once only."
+              },
+              "token": {
+                "$ref": "#/components/schemas/PersonalAccessToken"
+              }
+            }
+          }
+        }
+      },
+      "PersonalAccessTokenListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonalAccessToken"
+            }
+          }
+        }
+      },
+      "RevokePersonalAccessTokenResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PersonalAccessToken"
+          }
+        }
+      },
+      "OrganisationApiToken": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "665000000000000000000501"
+          },
+          "organisation_id": {
+            "type": "string",
+            "example": "665000000000000000000001"
+          },
+          "created_by_user_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "665000000000000000000101"
+          },
+          "token_type": {
+            "type": "string",
+            "example": "organisation_api_token"
+          },
+          "token_name": {
+            "type": "string",
+            "example": "Node-RED Integration Token"
+          },
+          "token_preview": {
+            "type": "string",
+            "nullable": true,
+            "example": "eyJhbGciOi...abcd"
+          },
+          "audience": {
+            "type": "string",
+            "example": "external"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "external:organisation.read",
+              "external:compute.jobs.create"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked",
+              "expired"
+            ],
+            "example": "active"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateOrganisationApiTokenRequest": {
+        "type": "object",
+        "required": [
+          "token_name",
+          "scopes"
+        ],
+        "properties": {
+          "token_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 160,
+            "example": "Node-RED Integration Token"
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 730,
+            "default": 365,
+            "example": 365
+          },
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 250,
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "external:organisation.read",
+              "external:compute.jobs.create"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "example": {
+              "system": "node-red",
+              "owner": "integration-team"
+            }
+          }
+        }
+      },
+      "CreateOrganisationApiTokenResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Organisation API token created. Copy the access_token now; it will not be shown again."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "token_type": {
+                "type": "string",
+                "example": "Bearer"
+              },
+              "access_token": {
+                "type": "string",
+                "description": "Raw bearer token returned once only."
+              },
+              "token": {
+                "$ref": "#/components/schemas/OrganisationApiToken"
+              }
+            }
+          }
+        }
+      },
+      "OrganisationApiTokenListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganisationApiToken"
+            }
+          }
+        }
+      },
+      "UpdateOrganisationApiTokenStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked"
+            ],
+            "example": "revoked"
+          }
+        }
+      },
+      "OrganisationApiTokenResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Organisation API token status updated successfully."
+          },
+          "data": {
+            "$ref": "#/components/schemas/OrganisationApiToken"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Health check",
+        "description": "External health check. Authentication: none.",
+        "operationId": "getHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Native login",
+        "description": "Authenticates an active native user with email and password. Authentication: none. Returns a bearer token with user_id, organisation_id, email, role_ids, token_type, audience and scopes.",
+        "operationId": "loginNativeUser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User or organisation is not active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Current authenticated user context",
+        "description": "Returns the authenticated user, organisation, role summaries and flattened permission keys. Authentication: UserSessionAuth bearer token required. Required token type: user_session_token. Required audience: internal.",
+        "operationId": "getCurrentUserContext",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user context returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/token-context": {
+      "get": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Current token context and token policy",
+        "description": "Returns the active token context for the authenticated request plus the v0.6.3 token type/audience/scope policy. Authentication: UserSessionAuth or PersonalAccessTokenAuth bearer token required. Required audience: internal.",
+        "operationId": "getTokenContext",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token context returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenContextResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token type or audience is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Logout current bearer token session",
+        "description": "Acknowledges logout for stateless bearer-token authentication and records an audit event. Authentication: UserSessionAuth bearer token required. Required token type: user_session_token. Required audience: internal.",
+        "operationId": "logoutCurrentUser",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/schema/status": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "MongoDB schema status",
+        "description": "Internal schema diagnostic endpoint. Authentication: Bearer user session token required. Required permission/scope: internal.schema.view.",
+        "operationId": "getSchemaStatus",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations": {
+      "post": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Create organisation",
+        "description": "Creates a new organisation tenant. Authentication: Bearer user session token required. Required permission/scope: platform.organisations.manage.",
+        "operationId": "createOrganisation",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganisationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Organisation slug conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List organisations",
+        "description": "Lists organisations with pagination, status filter and search. Authentication: Bearer user session token required. Required permission/scope: platform.organisations.view.",
+        "operationId": "listOrganisations",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "suspended"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations/{id}": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Get organisation",
+        "description": "Returns one organisation by id. Authentication: Bearer user session token required. Required permission/scope: platform.organisations.view.",
+        "operationId": "getOrganisationById",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organisation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation",
+        "description": "Updates organisation profile/configuration fields. Authentication: Bearer user session token required. Required permission/scope: platform.organisations.manage.",
+        "operationId": "updateOrganisation",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganisationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organisation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Organisation slug conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations/{id}/status": {
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation status",
+        "description": "Updates organisation status. Authentication: Bearer user session token required. Required permission/scope: platform.organisations.manage.",
+        "operationId": "updateOrganisationStatus",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganisationStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organisation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations/{organisationId}/users": {
+      "post": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Create organisation-owned user",
+        "description": "Organisation-owned user endpoint. Tenant rule: user is created and queried only under the organisation id in the path. Users cannot exist without an organisation and email_normalised is globally unique. Authentication: Bearer user session token required. Required permission/scope: users.create + organisation access.",
+        "operationId": "createOrganisationUser",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organisation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User email already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List organisation-owned users",
+        "description": "Organisation-owned user endpoint. Tenant rule: user is created and queried only under the organisation id in the path. Users cannot exist without an organisation and email_normalised is globally unique. Authentication: Bearer user session token required. Required permission/scope: users.view + organisation access.",
+        "operationId": "listOrganisationUsers",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "invited",
+                "active",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organisation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations/{organisationId}/users/{userId}": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Get organisation-owned user",
+        "description": "Organisation-owned user endpoint. Tenant rule: user is created and queried only under the organisation id in the path. Users cannot exist without an organisation and email_normalised is globally unique. Authentication: Bearer user session token required. Required permission/scope: users.view + organisation access.",
+        "operationId": "getOrganisationUserById",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found in this organisation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation-owned user",
+        "description": "Organisation-owned user endpoint. Tenant rule: user is created and queried only under the organisation id in the path. Users cannot exist without an organisation and email_normalised is globally unique. Authentication: Bearer user session token required. Required permission/scope: users.update + organisation access.",
+        "operationId": "updateOrganisationUser",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found in this organisation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User email already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organisations/{organisationId}/users/{userId}/status": {
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation-owned user status",
+        "description": "Organisation-owned user endpoint. Tenant rule: user is created and queried only under the organisation id in the path. Users cannot exist without an organisation and email_normalised is globally unique. Authentication: Bearer user session token required. Required permission/scope: users.disable + organisation access.",
+        "operationId": "updateOrganisationUserStatus",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organisationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found in this organisation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated user lacks required permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "OpenAPI specification",
+        "description": "Returns the current OpenAPI specification. Authentication: none in v0.6.3 local development; intended to become internal/admin protected later.",
+        "operationId": "getOpenApiSpec",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI specification returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Swagger UI documentation",
+        "description": "Interactive Swagger UI for the current API specification. Authentication: none in v0.6.3 local development; intended to become internal/admin protected later.",
+        "operationId": "getSwaggerUi",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML returned successfully."
+          }
+        }
+      }
+    },
+    "/permissions": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List permission catalogue",
+        "description": "Lists global active/inactive permission keys. Authentication: Bearer user session token required. Required permission/scope: permissions.view.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission catalogue returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Permission"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: permissions.view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/roles": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List organisation roles",
+        "description": "Lists roles for the logged-in user organisation. Authentication: Bearer user session token required. Required permission/scope: roles.view.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organisation roles returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Role"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: roles.view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Create organisation role",
+        "description": "Creates a custom role in the logged-in user organisation. Authentication: Bearer user session token required. Required permission/scope: roles.manage.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: roles.manage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/roles/{roleId}": {
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Get organisation role",
+        "description": "Returns one role from the logged-in user organisation. Authentication: Bearer user session token required. Required permission/scope: roles.view.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: roles.view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation role",
+        "description": "Updates role name, description or permission keys. Authentication: Bearer user session token required. Required permission/scope: roles.manage.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: roles.manage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role name conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Delete custom organisation role",
+        "description": "Deletes a custom role if it is not a system role and is not assigned to users. Authentication: Bearer user session token required. Required permission/scope: roles.manage.",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted"
+          },
+          "400": {
+            "description": "System role cannot be deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission required: roles.manage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role assigned to users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/personal-access-tokens": {
+      "post": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Create personal access token",
+        "description": "Creates a user-owned long-lived Personal Access Token for Postman, scripts and user automation. Authentication: UserSessionAuth required. Required permission: tokens.personal.manage. Requested token scopes cannot exceed the logged-in user permissions. The raw access_token is returned once only.",
+        "operationId": "createPersonalAccessToken",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonalAccessTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Personal access token created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePersonalAccessTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List own personal access tokens",
+        "description": "Lists Personal Access Token metadata for the authenticated user. Raw token values are never returned. Authentication: UserSessionAuth or PersonalAccessTokenAuth. Required permission/scope: tokens.personal.manage.",
+        "operationId": "listPersonalAccessTokens",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personal access tokens returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalAccessTokenListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/personal-access-tokens/{tokenId}": {
+      "delete": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Revoke personal access token",
+        "description": "Soft-revokes a user-owned Personal Access Token. Authentication: UserSessionAuth or PersonalAccessTokenAuth. Required permission/scope: tokens.personal.manage.",
+        "operationId": "revokePersonalAccessToken",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personal access token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokePersonalAccessTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/api-tokens": {
+      "post": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Create organisation API token",
+        "description": "Creates an organisation-owned API token for external/system-to-system integrations. Authentication: UserSessionAuth required. Required permission: tokens.organisation.manage. Requested scopes must be from the allowed external:* scope catalogue. The raw access_token is returned once only.",
+        "operationId": "createOrganisationApiToken",
+        "security": [
+          {
+            "UserSessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganisationApiTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organisation API token created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOrganisationApiTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "List organisation API tokens",
+        "description": "Lists organisation API token metadata for the authenticated user organisation. Raw token values are never returned. Authentication: UserSessionAuth or PersonalAccessTokenAuth. Required permission/scope: tokens.organisation.manage.",
+        "operationId": "listOrganisationApiTokens",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organisation API tokens returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationApiTokenListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/api-tokens/{tokenId}/status": {
+      "patch": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Update organisation API token status",
+        "description": "Activates or revokes an organisation API token. Authentication: UserSessionAuth or PersonalAccessTokenAuth. Required permission/scope: tokens.organisation.manage. Expired tokens cannot be reactivated.",
+        "operationId": "updateOrganisationApiTokenStatus",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganisationApiTokenStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Organisation API token status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationApiTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/org/api-tokens/{tokenId}": {
+      "delete": {
+        "tags": [
+          "Internal"
+        ],
+        "summary": "Revoke organisation API token",
+        "description": "Soft-revokes an organisation API token. Authentication: UserSessionAuth or PersonalAccessTokenAuth. Required permission/scope: tokens.organisation.manage.",
+        "operationId": "revokeOrganisationApiToken",
+        "security": [
+          {
+            "UserSessionAuth": []
+          },
+          {
+            "PersonalAccessTokenAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organisation API token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganisationApiTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external/token-context": {
+      "get": {
+        "tags": [
+          "External"
+        ],
+        "summary": "Validate organisation API token context",
+        "description": "External validation endpoint for organisation_api_token authentication. Authentication: OrganisationApiTokenAuth required. Required scope: external:organisation.read. This endpoint is included in v0.6.3 so external/system-to-system tokens can be tested before feature-specific external APIs are added.",
+        "operationId": "getExternalTokenContext",
+        "security": [
+          {
+            "OrganisationApiTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organisation API token context returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenContextResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

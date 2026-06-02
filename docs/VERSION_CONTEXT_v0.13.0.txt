@@ -1,0 +1,124 @@
+SaaS Boilerplate Version Context
+================================
+
+Version: v0.13.0
+Build Name: API Security Hardening + Swagger Domain Refactor
+Source Baseline: v0.12.0 - Complete OIDC / SSO Build
+
+Canonical sequence
+------------------
+v0.10.2 - Image Handling and Branding Asset Migration
+v0.11.0 - Audit Logging Expansion and Security Events
+v0.12.0 - Complete OIDC / SSO Build
+v0.13.0 - API Security Hardening + Swagger Domain Refactor
+v0.14.0 - Seed and Installer Scripts
+v0.15.0 - Deployment Readiness
+v0.16.0 - Testing Foundations
+
+Current architecture rule
+-------------------------
+Organisation -> Users.
+A user belongs to exactly one organisation.
+A user cannot exist without an organisation.
+Tenant-owned data must remain organisation-scoped.
+
+What v0.13.0 adds
+-----------------
+- Refactored Swagger/OpenAPI tags into functional/domain-based groups.
+- Removed Internal/External as primary Swagger grouping categories.
+- Retained internal/public/external classification as endpoint metadata using x-saas-classification.
+- Added endpoint metadata for required permission, tenant scope and accepted token types.
+- Added stable machine-readable API error codes.
+- Updated the shared HttpError utility with default code mapping.
+- Updated the global error handler to emit error.code consistently.
+- Added requireAllPermissions() for sensitive routes requiring more than one permission.
+- Hardened platform organisation plan routes so they require both platform organisation permissions and plan permissions.
+- Improved permission/scope failure messages to avoid leaking unnecessary internal detail in message text.
+- Fixed local OIDC_STATE_SECRET handling so empty local development values no longer fail seed/start.
+- Added docs/API_SECURITY_HARDENING.md.
+- Added static OpenAPI JSON/YAML for v0.13.0.
+
+Security-sensitive route hardening
+----------------------------------
+The following routes now require combined permissions:
+- GET /api/platform/organisations/:organisationId/plan
+  - platform.organisations.view
+  - plans.view
+- PATCH /api/platform/organisations/:organisationId/plan
+  - platform.organisations.manage
+  - plans.manage
+- POST /api/platform/organisations/:organisationId/plan/apply-defaults
+  - platform.organisations.manage
+  - plans.manage
+
+Swagger/OpenAPI domain tags
+---------------------------
+The v0.13.0 OpenAPI spec uses these main tags:
+- Auth
+- Organisations
+- Users
+- RBAC
+- Tokens
+- Branding
+- SSO
+- MFA
+- Features
+- Plans
+- Files
+- Audit
+- Security
+- Tenant Security
+- Platform Admin
+- Developer/System
+
+Internal/external classification rule
+-------------------------------------
+Internal, external and public classification is no longer the main Swagger grouping.
+It is captured as endpoint metadata:
+- x-saas-classification
+- x-required-permission
+- x-required-scope
+- x-tenant-scope
+- x-token-types
+
+Files added
+-----------
+- docs/API_SECURITY_HARDENING.md
+- docs/VERSION_CONTEXT_v0.13.0.txt
+- docs/openapi/openapi.v0.13.0.json
+- docs/openapi/openapi.v0.13.0.yaml
+
+Files updated
+-------------
+- package.json
+- apps/api/package.json
+- apps/web/package.json
+- apps/api/src/config/env.ts
+- apps/api/src/utils/httpError.ts
+- apps/api/src/middleware/errorHandler.ts
+- apps/api/src/middleware/auth.ts
+- apps/api/src/modules/plans/plan.routes.ts
+- apps/api/src/modules/schema/schema.routes.ts
+- apps/api/src/scripts/seed.ts
+- apps/api/src/docs/openapi.ts
+- apps/api/src/utils/features.ts
+- README.md
+- CHANGELOG.md
+
+Validation performed
+--------------------
+- npm install --ignore-scripts
+- npm run build -w apps/api
+- npm run build -w apps/web
+- npm run build
+
+Known limitations
+-----------------
+- This build does not add installer scripts.
+- This build does not add deployment readiness automation.
+- This build does not add the canonical v0.16.0 testing foundations.
+- OIDC live-login testing still requires a real provider such as Keycloak, Azure Entra or Okta.
+
+Next canonical build
+--------------------
+v0.14.0 - Seed and Installer Scripts

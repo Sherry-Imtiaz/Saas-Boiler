@@ -1,0 +1,119 @@
+SaaS BOILERPLATE VERSION CONTEXT
+Version: v0.6.3
+Build Name: Organisation API Token Foundation
+Date: 2026-05-21
+
+CORE PRODUCT RULE
+Organisation -> Users.
+A user belongs to one organisation only.
+A user cannot exist without an organisation.
+Every tenant-owned document must include organisation_id unless it is explicitly global platform metadata.
+
+DATABASE
+MongoDB is the main software database.
+Mongoose models currently include:
+- OrganisationModel
+- UserModel
+- RoleModel
+- PermissionModel
+- AuditLogModel
+- TokenRecordModel
+
+ACTIVE AUTHENTICATION MODEL
+v0.5.0 introduced native login and signed bearer tokens.
+v0.6.1 formalised token type, audience and scope metadata.
+v0.6.2 activated Personal Access Tokens.
+v0.6.3 activates Organisation API Tokens.
+
+ACTIVE TOKEN TYPES
+1. user_session_token
+   - Audience: internal
+   - Used by frontend, admin UI and Postman during normal user testing
+   - Represents a logged-in user
+
+2. personal_access_token
+   - Audience: internal
+   - Used by a real user for Postman, scripts and user automation
+   - Represents a real user
+   - Stored as hashed token record
+   - Revocable, expirable and auditable
+
+3. organisation_api_token
+   - Audience: external
+   - Used by external/system-to-system integrations
+   - Represents the organisation/integration, not a normal user
+   - Stored as hashed token record
+   - Revocable, expirable and auditable
+   - Tracks last_used_at
+
+4. service_account_token
+   - Planned future token type
+
+WHAT v0.6.3 ADDS
+- Organisation API token creation
+- Organisation API token listing
+- Organisation API token status update
+- Organisation API token revoke/delete endpoint
+- External token validation endpoint
+- Organisation API token auth middleware foundation
+- External scope enforcement
+- Hashed token storage
+- One-time raw token return
+- Audit logs for organisation API token create/status/revoke
+- Swagger/OpenAPI documentation for all new APIs
+- Static OpenAPI JSON/YAML for v0.6.3
+- Updated README, changelog and architecture notes
+
+NEW APIS
+POST   /api/org/api-tokens
+GET    /api/org/api-tokens
+PATCH  /api/org/api-tokens/:tokenId/status
+DELETE /api/org/api-tokens/:tokenId
+GET    /api/external/token-context
+
+TOKEN STORAGE RULE
+The raw organisation API token is returned once only.
+The database stores only token_hash and token_prefix.
+A leaked token can be revoked by status update or delete/revoke endpoint.
+
+EXTERNAL SCOPES ADDED IN v0.6.3
+external:organisation.read
+external:files.read
+external:files.upload
+external:compute.jobs.read
+external:compute.jobs.create
+external:compute.jobs.cancel
+external:records.read
+external:records.create
+external:records.update
+external:webhooks.send
+
+SWAGGER / OPENAPI RULE
+Every API created for this software must include Swagger/OpenAPI documentation with:
+- Internal or External tag
+- Authentication requirement
+- Required permission or token scope
+- Request schema where applicable
+- Response schema
+- Tenant/organisation access notes where applicable
+
+STATIC DOCUMENTATION FILES
+- docs/openapi/openapi.v0.6.3.json
+- docs/openapi/openapi.v0.6.3.yaml
+- docs/VERSION_CONTEXT_v0.6.3.txt
+
+RUN COMMANDS ON WINDOWS
+From the project folder:
+docker compose up -d
+npm install
+copy apps\api\.env.example apps\api\.env
+copy apps\web\.env.example apps\web\.env
+npm run seed
+npm run dev
+
+DEMO LOGIN
+Email: admin@example.com
+Password: ChangeMe123!
+
+NEXT BUILD
+v0.7.0 - Organisation Login Branding

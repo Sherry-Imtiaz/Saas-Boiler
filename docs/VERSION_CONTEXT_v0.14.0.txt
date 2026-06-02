@@ -1,0 +1,93 @@
+SaaS Boilerplate Version Context
+================================
+
+Version: v0.14.0
+Build Name: Seed and Installer Scripts
+Built From: v0.13.0 - API Security Hardening + Swagger Domain Refactor
+
+Purpose
+-------
+v0.14.0 adds the local setup, seed and installer foundation needed before deployment readiness and formal testing.
+
+This build makes the project easier to run consistently on Windows by adding repeatable setup scripts, safer configurable seed data, install validation and safe development reset support.
+
+What v0.14.0 Adds
+-----------------
+- Root local setup script: scripts/setup-local.mjs.
+- Windows install wrapper: scripts/install-local.cmd.
+- Windows seed wrapper: scripts/seed-local.cmd.
+- Windows install-check wrapper: scripts/check-local.cmd.
+- Windows development reset wrapper: scripts/reset-local-data.cmd.
+- Configurable seed values through apps/api/.env.
+- Generated local JWT secret handling for placeholder or invalid local values.
+- Configurable seeded organisation name, slug, domain, admin user and plan.
+- Idempotent seed process for permissions, plans, organisation, roles and admin user.
+- API install check script: apps/api/src/scripts/checkInstall.ts.
+- Safe local development reset script: apps/api/src/scripts/resetDevData.ts.
+- Updated schema status to v0.14.0.
+- Updated OpenAPI runtime metadata to v0.14.0.
+- Added docs/SEED_AND_INSTALLER_SCRIPTS.md.
+- Added static OpenAPI JSON/YAML for v0.14.0.
+
+Canonical Roadmap Position
+--------------------------
+Current canonical sequence:
+
+v0.10.2 - Image Handling and Branding Asset Migration
+v0.11.0 - Audit Logging Expansion and Security Events
+v0.12.0 - Complete OIDC / SSO Build
+v0.13.0 - API Security Hardening + Swagger Domain Refactor
+v0.14.0 - Seed and Installer Scripts
+v0.15.0 - Deployment Readiness
+v0.16.0 - Testing Foundations
+
+Important Project Rules Preserved
+---------------------------------
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- No user can exist without an organisation.
+- Every tenant-owned record must be organisation scoped.
+- Swagger/OpenAPI documentation is retained and updated for every build.
+- Domain-based Swagger tags remain the standard.
+- Internal/external/public classification remains endpoint metadata, not the main Swagger grouping.
+- Compute allocation and compute jobs remain optional future modules, not core boilerplate modules.
+
+Local Run Flow
+--------------
+Recommended Windows setup:
+
+scripts\install-local.cmd
+
+Manual equivalent:
+
+npm run setup:local
+docker compose up -d
+npm install
+npm run seed
+npm run check:install
+npm run dev
+
+Seed Configuration
+------------------
+The seed script reads these optional values from apps/api/.env:
+
+SEED_ORGANISATION_NAME
+SEED_ORGANISATION_SLUG
+SEED_ORGANISATION_DOMAIN
+SEED_ADMIN_EMAIL
+SEED_ADMIN_PASSWORD
+SEED_ADMIN_FIRST_NAME
+SEED_ADMIN_LAST_NAME
+SEED_PLAN_KEY
+SEED_FORCE_ADMIN_PASSWORD_RESET
+
+Validation Commands Used
+------------------------
+npm install --ignore-scripts
+npm run build -w apps/api
+npm run build -w apps/web
+npm run build
+
+Notes
+-----
+The build focuses on local setup and seed readiness. It does not introduce final automated test coverage; that belongs to v0.16.0 Testing Foundations.

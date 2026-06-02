@@ -1,0 +1,16 @@
+@echo off
+setlocal
+cd /d "%~dp0.."
+echo Preparing local environment files...
+node scripts\setup-local.mjs || exit /b 1
+echo Starting local Docker services...
+docker compose up -d || exit /b 1
+echo Installing dependencies...
+npm install || exit /b 1
+echo Seeding local data...
+npm run seed || exit /b 1
+echo Checking local install...
+npm run check:install || exit /b 1
+echo.
+echo Local install completed. Run npm run dev to start the API and web app.
+endlocal

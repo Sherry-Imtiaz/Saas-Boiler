@@ -1,0 +1,68 @@
+SaaS Boilerplate Version Context
+Version: v0.8.0
+Build name: Organisation Auth Configuration
+
+Core architecture rule:
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- A user cannot exist without an organisation_id.
+- Every tenant-owned document must be scoped to organisation_id.
+
+What v0.8.0 adds:
+- Public organisation auth options endpoint.
+- Authenticated organisation auth configuration read/update APIs.
+- Organisation auth configuration UI page.
+- Native/mixed/oidc/saml login method settings.
+- SSO provider placeholders for Azure Entra ID, Okta, Google and custom providers.
+- Issuer URL, discovery URL, client ID and client secret reference fields.
+- Allowed email domain settings.
+- Default role setting for future SSO auto-provisioned users.
+- Auto-provision users flag.
+- Enforce SSO flag.
+- Enforce MFA flag.
+- Native login policy checks against organisation auth configuration.
+- Audit logging for auth configuration updates.
+- Swagger/OpenAPI documentation for all new endpoints.
+
+New APIs:
+- GET /api/public/organisation-auth-options/:identifier
+- GET /api/org/auth-config
+- PATCH /api/org/auth-config
+
+New permissions:
+- organisation.auth.view
+- organisation.auth.manage
+
+Important implementation status:
+- Native login is active.
+- SSO provider configuration is stored only; real OIDC/SAML login flow is planned for a later build.
+- MFA enforcement is stored only; full MFA setup/verification is planned for a later build.
+
+Authentication model active in v0.8.0:
+- user_session_token for logged-in user/admin access.
+- personal_access_token for user-owned long-lived internal access.
+- organisation_api_token for external/system-to-system integration access.
+- service_account_token remains planned.
+
+Swagger/OpenAPI rule:
+- Every API must be documented with Internal or External tag.
+- Every protected API must show authentication requirements.
+- Every protected API must show required permission/scope in description.
+
+Verification checks:
+1. Run docker compose up -d.
+2. Run npm install.
+3. Copy .env files using Windows copy command if needed.
+4. Run npm run seed.
+5. Run npm run build.
+6. Run npm run dev.
+7. Open http://localhost:5173.
+8. Login using organisation demo-organisation, admin@example.com and ChangeMe123!.
+9. Open Auth Config page.
+10. Verify GET /api/public/organisation-auth-options/demo-organisation works.
+11. Verify GET /api/org/auth-config works with bearer token.
+12. Verify PATCH /api/org/auth-config works with bearer token and organisation.auth.manage permission.
+13. Confirm Swagger includes v0.8.0 endpoints.
+
+Next planned build:
+- v0.8.1 - MFA Foundation.

@@ -1,0 +1,68 @@
+SaaS Boilerplate - Version Context
+Version: v0.18.2
+Build Name: Seed Stabilisation Patch
+
+Baseline
+--------
+v0.18.2 is a patch release built from v0.18.1 - Stabilisation and Local Validation.
+
+Purpose
+-------
+This release fixes a real local setup defect found while running `npm run seed` on Windows.
+
+The error was:
+
+MongoServerError: Updating the path 'organisation_id' would create a conflict at 'organisation_id'
+
+Root Cause
+----------
+The demo admin user seed upsert was setting the same fields in both `$setOnInsert` and `$set`.
+MongoDB applies both operators during an insert upsert and rejects conflicting paths.
+
+Changed in v0.18.2
+------------------
+1. Fixed admin user seed upsert conflict.
+   - Removed `organisation_id`, `status` and `role_ids` from `$setOnInsert`.
+   - Kept these fields in `$set` so rerunning seed refreshes admin role and organisation linkage.
+
+2. Preserved insert-only user fields in `$setOnInsert`.
+   - email
+   - email_normalised
+   - first_name
+   - last_name
+   - display_name
+   - auth
+   - profile
+
+3. Patched package-lock registry URLs.
+   - Replaced internal build-environment tarball URLs with public npm registry URLs.
+   - This prevents npm install timeouts on developer machines.
+
+4. Updated version metadata.
+   - Root package version updated to 0.18.2.
+   - API package version updated to 0.18.2.
+   - Web package version updated to 0.18.2.
+   - Health/schema/script metadata updated to 0.18.2.
+   - Static OpenAPI JSON/YAML files added for v0.18.2.
+
+Validation Commands
+-------------------
+The following validation should be used on a Windows development machine:
+
+npm config set registry https://registry.npmjs.org/
+npm install --registry=https://registry.npmjs.org/
+docker compose up -d
+npm run seed
+npm run check:install
+npm run validate:local
+npm run dev
+
+Default Seeded Login
+--------------------
+Organisation slug: demo-organisation
+Email: admin@example.com
+Password: ChangeMe123!
+
+Next Recommended Build
+----------------------
+v0.19.0 - Platform Admin User Management / Advanced Admin Controls

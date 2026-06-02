@@ -1,0 +1,50 @@
+SaaS Boilerplate Version Context - v0.10.0
+==========================================
+
+Version: v0.10.0
+Build Name: File Asset Foundation
+Date: 2026-05-21
+
+Core architecture rules retained:
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- A user cannot exist without an organisation_id.
+- Every tenant-owned document must be organisation-scoped.
+- Internal APIs require user_session_token or scoped personal_access_token.
+- External integration APIs use organisation_api_token.
+- Every API must be documented in Swagger/OpenAPI with Internal/External tag and authentication requirements.
+
+New in v0.10.0:
+- Added FileAssetModel and file_assets MongoDB collection.
+- Added organisation-owned file metadata: organisation_id, uploaded_by_user_id, file_name, mime_type, file_type, size, checksum, storage provider/key/path, visibility, status and tags.
+- Added local development file storage at apps/api/storage/organisations/{organisation_id}/files/{file_id}/.
+- Added organisation file APIs:
+  - POST /api/org/files
+  - GET /api/org/files
+  - GET /api/org/files/:fileId
+  - GET /api/org/files/:fileId/download
+  - DELETE /api/org/files/:fileId
+- File APIs require feature gate: file_uploads.
+- File APIs require RBAC permissions: files.view, files.upload and files.delete.
+- Upload checks plan/subscription readiness limits from organisation.plan.limits:
+  - max_file_size_mb
+  - max_storage_gb
+- Added storage usage summary for active organisation files.
+- Added audit events:
+  - file.uploaded
+  - file.downloaded
+  - file.archived
+- Added Files page in the React admin UI.
+- Updated schema status to include FileAsset model.
+- Updated OpenAPI static JSON/YAML for v0.10.0.
+
+Not included yet:
+- S3/Azure Blob/MinIO storage provider abstraction.
+- Virus scanning.
+- OCR or document parsing.
+- File versioning.
+- Advanced file sharing policies.
+- Branding asset migration to FileAsset.
+
+Next planned build:
+- v0.10.1 - File Storage Provider Abstraction.

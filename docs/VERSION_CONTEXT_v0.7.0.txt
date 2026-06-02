@@ -1,0 +1,86 @@
+SaaS Boilerplate Version Context
+Version: v0.7.0
+Name: Organisation Login Branding
+Date: 2026-05-21
+
+PURPOSE
+v0.7.0 adds organisation-specific login branding to the SaaS boilerplate. The goal is to let the application resolve an organisation before authentication and display that organisation's branded login experience.
+
+LOCKED DATA MODEL
+Organisation -> Users
+- A user belongs to one organisation only.
+- A user cannot exist without an organisation_id.
+- email_normalised remains globally unique.
+- Every tenant-owned document must be organisation-scoped.
+
+WHAT v0.7.0 ADDS
+Backend:
+- GET /api/public/organisation-login/:identifier
+- GET /api/org/branding
+- PATCH /api/org/branding
+- Safe public login config response
+- Organisation branding update validation
+- Organisation slug/domain login config resolution
+- organisation_slug check added to native login request
+- Audit logging for branding updates
+
+Frontend:
+- Organisation slug/domain field on login screen
+- Load public login configuration button
+- Branded login title, subtitle, colours, logo, background preview and support email
+- Branding admin page
+- Branding form update flow
+- Public login preview
+- Updated build label to v0.7.0
+
+SWAGGER / OPENAPI
+Every API added in this build is documented.
+New documented endpoints:
+- GET /api/public/organisation-login/{identifier}
+- GET /api/org/branding
+- PATCH /api/org/branding
+
+Static documentation files:
+- docs/openapi/openapi.v0.7.0.json
+- docs/openapi/openapi.v0.7.0.yaml
+
+AUTHENTICATION AND ACCESS NOTES
+- Public login config endpoint is External and unauthenticated.
+- GET /api/org/branding is Internal and requires organisation.view.
+- PATCH /api/org/branding is Internal and requires organisation.update.
+- User session tokens and scoped personal access tokens can access organisation branding APIs.
+- Organisation API tokens are still only for External APIs.
+
+RUN COMMANDS ON WINDOWS
+From the v0.7.0 project folder:
+
+docker compose up -d
+npm install
+copy apps\api\.env.example apps\api\.env
+copy apps\web\.env.example apps\web\.env
+npm run seed
+npm run dev
+
+DEMO LOGIN
+Organisation: demo-organisation
+Email: admin@example.com
+Password: ChangeMe123!
+
+VERIFICATION
+1. Open http://localhost:5173
+2. Confirm login screen shows organisation slug field.
+3. Click Load for demo-organisation.
+4. Confirm login title/subtitle/branding is shown.
+5. Log in with demo user.
+6. Open Branding page.
+7. Update login title/subtitle/colour.
+8. Save and confirm preview updates.
+9. Call GET /api/public/organisation-login/demo-organisation and confirm public config reflects updated branding.
+
+NEXT BUILD
+v0.8.0 - Organisation Auth Configuration
+- Native/mixed/SSO-ready auth settings screen
+- Allowed domains
+- SSO placeholders
+- Default role setting
+- Enforce SSO/MFA flags

@@ -1,0 +1,124 @@
+SaaS Boilerplate Version Context
+Version: v0.6.0
+Name: RBAC Foundation
+Date: 2026-05-21
+
+Purpose
+-------
+This version adds the RBAC foundation to the organisation-first SaaS boilerplate.
+It builds on v0.5.0 native authentication and starts protecting internal APIs using bearer user session tokens and permission checks.
+
+Locked Design Decisions
+-----------------------
+1. MongoDB remains the main software database.
+2. Tenant model remains Organisation -> Users.
+3. A user belongs to exactly one organisation.
+4. A user cannot exist without organisation_id.
+5. Every tenant-owned document must include organisation_id.
+6. Normal API requests must not trust organisation_id from request bodies.
+7. Current protected access uses logged-in user access tokens.
+8. Future token strategy includes Personal Access Tokens, Organisation API Tokens and Service Account Tokens.
+9. Every API must include Swagger/OpenAPI documentation, Internal/External tags and authentication/permission notes.
+
+New Code Areas
+--------------
+- apps/api/src/middleware/auth.ts
+  Updated authentication middleware to resolve roles and permission keys.
+  Added requirePermission, requireAnyPermission and requireOrganisationParamAccess.
+
+- apps/api/src/modules/permissions/permission.routes.ts
+  Added global permission catalogue endpoint.
+
+- apps/api/src/modules/roles/role.routes.ts
+  Added organisation-scoped role management APIs.
+
+- apps/api/src/routes/index.ts
+  Mounted permissions and organisation role routes.
+
+- apps/api/src/modules/schema/schema.routes.ts
+  Protected internal schema status route with BearerAuth and internal.schema.view.
+
+- apps/api/src/modules/organisations/organisation.routes.ts
+  Protected platform organisation APIs with platform organisation permissions.
+
+- apps/api/src/modules/users/user.routes.ts
+  Protected organisation-owned user APIs with user permissions and organisation path checks.
+
+New APIs
+--------
+GET    /api/permissions
+GET    /api/org/roles
+POST   /api/org/roles
+GET    /api/org/roles/:roleId
+PATCH  /api/org/roles/:roleId
+DELETE /api/org/roles/:roleId
+
+Protected Existing APIs
+-----------------------
+GET   /api/internal/schema/status
+POST  /api/platform/organisations
+GET   /api/platform/organisations
+GET   /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id
+PATCH /api/platform/organisations/:id/status
+POST  /api/platform/organisations/:organisationId/users
+GET   /api/platform/organisations/:organisationId/users
+GET   /api/platform/organisations/:organisationId/users/:userId
+PATCH /api/platform/organisations/:organisationId/users/:userId
+PATCH /api/platform/organisations/:organisationId/users/:userId/status
+
+Authentication Model
+--------------------
+Current access uses user session bearer tokens returned by POST /api/auth/login.
+Postman testing should use the login token for the seeded demo admin user.
+
+Local Demo Credentials
+----------------------
+Email: admin@example.com
+Password: ChangeMe123!
+
+RBAC Rules
+----------
+- /api/permissions requires permissions.view.
+- /api/org/roles list/view requires roles.view.
+- /api/org/roles create/update/delete requires roles.manage.
+- /api/internal/schema/status requires internal.schema.view.
+- /api/platform/organisations view APIs require platform.organisations.view.
+- /api/platform/organisations create/update/status APIs require platform.organisations.manage.
+- /api/platform/organisations/:organisationId/users APIs require users.* permissions and organisation parameter access.
+
+Seed Updates
+------------
+The seed script now creates these additional permissions:
+- platform.organisations.view
+- platform.organisations.manage
+- internal.schema.view
+- permissions.view
+- users.update
+
+The Organisation Admin role receives all seeded permissions.
+The Viewer role remains read-only and limited.
+
+Swagger/OpenAPI
+---------------
+Updated runtime OpenAPI spec:
+- apps/api/src/docs/openapi.ts
+
+Added static OpenAPI files:
+- docs/openapi/openapi.v0.6.0.json
+- docs/openapi/openapi.v0.6.0.yaml
+
+Build Validation
+----------------
+npm install completed.
+npm run build completed successfully for API and Web.
+
+Next Planned Version
+--------------------
+v0.6.1 - Token Scope Foundation
+
+Next build should define token type metadata and guard structure for:
+- user_session_token
+- personal_access_token
+- organisation_api_token
+- service_account_token

@@ -1,0 +1,136 @@
+SaaS BOILERPLATE VERSION CONTEXT
+Version: v0.6.2
+Name: Personal Access Token Module
+Date: 2026-05-21
+
+CORE DESIGN RULES
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- A user cannot exist without organisation_id.
+- MongoDB is the main application database.
+- Every tenant-owned document must include organisation_id.
+- Backend must resolve organisation context from authenticated user/token context, not normal frontend input.
+- Every API must include Swagger/OpenAPI documentation with Internal or External tag and authentication requirements.
+
+CURRENT BUILD HISTORY
+- v0.1.0: Application skeleton.
+- v0.1.1: Swagger/OpenAPI documentation foundation.
+- v0.2.0: MongoDB schema foundation.
+- v0.3.0: Organisation module.
+- v0.4.0: Organisation-owned user module.
+- v0.5.0: Native authentication and session foundation.
+- v0.6.0: RBAC foundation.
+- v0.6.1: Token type, audience and scope foundation.
+- v0.6.2: User-owned Personal Access Token module.
+
+WHAT v0.6.2 ADDS
+- Personal Access Token API module.
+- POST /api/org/personal-access-tokens.
+- GET /api/org/personal-access-tokens.
+- DELETE /api/org/personal-access-tokens/:tokenId.
+- Personal Access Tokens are signed bearer tokens backed by MongoDB token records.
+- Only a SHA-256 hash of the token is stored.
+- Raw token is returned once only during create.
+- Token expiry is supported using expires_in_days.
+- Token revoke is supported through status='revoked'.
+- Token last_used_at is updated when a Personal Access Token is used.
+- Personal Access Token scopes are validated against the current user's resolved RBAC permissions.
+- requireAuth now supports active user_session_token and personal_access_token for internal APIs.
+- requirePermission and requireAnyPermission now enforce token scopes for Personal Access Tokens.
+- Audit logs are written for token.personal.create and token.personal.revoke.
+
+ACTIVE TOKEN TYPES IN v0.6.2
+- user_session_token: short-lived login token for frontend/admin/Postman during development.
+- personal_access_token: long-lived user-owned scoped token for Postman/scripts/user automation.
+
+PLANNED TOKEN TYPES
+- organisation_api_token: planned for v0.6.3, organisation-owned external/system-to-system access.
+- service_account_token: reserved for later service identity requirements.
+
+PERSONAL ACCESS TOKEN RULES
+- PAT represents a real user.
+- PAT is tied to organisation_id and user_id.
+- PAT audience is internal.
+- PAT token_type is personal_access_token.
+- PAT scopes cannot exceed the creating user's current permission keys.
+- PAT create requires user_session_token and tokens.personal.manage.
+- PAT list/revoke requires tokens.personal.manage and can be called with user_session_token or a properly scoped personal_access_token.
+- PAT cannot currently create another PAT because create endpoint requires user_session_token.
+
+MONGODB COLLECTIONS IN USE
+- organisations
+- users
+- roles
+- permissions
+- auditlogs
+- tokenrecords
+
+NEW/UPDATED FILES
+- apps/api/src/modules/personalAccessTokens/personalAccessToken.routes.ts
+- apps/api/src/utils/tokenHash.ts
+- apps/api/src/middleware/auth.ts
+- apps/api/src/utils/tokenTypes.ts
+- apps/api/src/routes/index.ts
+- apps/api/src/docs/openapi.ts
+- docs/openapi/openapi.v0.6.2.json
+- docs/openapi/openapi.v0.6.2.yaml
+- docs/VERSION_CONTEXT_v0.6.2.txt
+- README.md
+- CHANGELOG.md
+- docs/ARCHITECTURE.md
+
+RUN COMMANDS - WINDOWS CMD
+1. Start MongoDB:
+   docker compose up -d
+
+2. Install dependencies:
+   npm install
+
+3. Copy env files:
+   copy apps\api\.env.example apps\api\.env
+   copy apps\web\.env.example apps\web\.env
+
+4. Seed data:
+   npm run seed
+
+5. Start dev servers:
+   npm run dev
+
+DEMO LOGIN
+Email: admin@example.com
+Password: ChangeMe123!
+
+TEST LOGIN
+curl -X POST http://localhost:4000/api/auth/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"admin@example.com\",\"password\":\"ChangeMe123!\"}"
+
+CREATE PERSONAL ACCESS TOKEN
+curl -X POST http://localhost:4000/api/org/personal-access-tokens ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"token_name\":\"Postman Testing Token\",\"expires_in_days\":30,\"scopes\":[\"organisation.view\",\"users.view\",\"roles.view\",\"tokens.personal.manage\"]}"
+
+LIST PERSONAL ACCESS TOKENS
+curl http://localhost:4000/api/org/personal-access-tokens ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+REVOKE PERSONAL ACCESS TOKEN
+curl -X DELETE http://localhost:4000/api/org/personal-access-tokens/YOUR_TOKEN_ID ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+SWAGGER / OPENAPI
+Swagger UI: http://localhost:4000/api/docs
+OpenAPI JSON: http://localhost:4000/api/openapi.json
+Static JSON: docs/openapi/openapi.v0.6.2.json
+Static YAML: docs/openapi/openapi.v0.6.2.yaml
+
+BUILD VALIDATION TARGET
+- npm install
+- npm run build
+
+NEXT PLANNED BUILD
+v0.6.3 - Organisation API Token Foundation
+- Organisation-owned API tokens for external/system-to-system access.
+- Token scopes for external APIs.
+- Organisation API token hashing, expiry, revoke and audit logs.

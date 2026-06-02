@@ -1,0 +1,42 @@
+{
+  "name": "saas-boilerplate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Organisation-first SaaS boilerplate with MongoDB, Node.js API and React frontend.",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "start:api": "npm run start -w apps/api",
+    "lint": "npm run lint -w apps/api && npm run lint -w apps/web",
+    "format": "prettier --write .",
+    "seed": "npm run seed -w apps/api",
+    "setup:local": "node scripts/setup-local.mjs",
+    "install:local": "scripts\\install-local.cmd",
+    "seed:local": "scripts\\seed-local.cmd",
+    "check:install": "npm run check:install -w apps/api",
+    "reset:dev-data": "npm run reset:dev-data -w apps/api",
+    "check:deployment": "npm run check:deployment -w apps/api --",
+    "build:production": "npm run build",
+    "start:production": "npm run start:api",
+    "deploy:check": "scripts\\deployment-readiness.cmd",
+    "test": "npm run test -w apps/api",
+    "test:unit": "npm run test:unit -w apps/api",
+    "test:integration": "npm run test:integration -w apps/api",
+    "test:watch": "npm run test:watch -w apps/api",
+    "test:coverage": "npm run test:coverage -w apps/api",
+    "validate:local": "scripts\\validate-local.cmd",
+    "test:integration:local": "scripts\\test-integration-local.cmd",
+    "test:integration:memory": "scripts\\test-integration-memory.cmd"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.1.2",
+    "globals": "^17.6.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.60.1"
+  }
+}

@@ -1,0 +1,132 @@
+SaaS Boilerplate - Version Context
+Version: v0.11.0
+Build Name: Audit Logging Expansion and Security Events
+
+Core architecture rule:
+Organisation -> Users. Users belong to exactly one organisation and cannot exist without organisation_id. Every tenant-owned document must be scoped to organisation_id.
+
+Development documentation rule:
+Every API must be represented in Swagger/OpenAPI and show authentication requirements. Internal/External remains endpoint classification metadata, while v0.11.0 introduces Audit and Security as domain Swagger tags. Each build zip includes static OpenAPI JSON/YAML plus this version context document.
+
+Build position:
+This build starts from the uploaded v0.10.2 baseline. The originally discussed compute allocation and compute jobs modules are intentionally skipped for the core boilerplate sequence because they are optional product modules rather than minimum SaaS foundation.
+
+What was added in v0.11.0:
+- Added SecurityEvent MongoDB model.
+- Added SecurityEvent indexes for organisation, actor, event_type, severity, status and createdAt queries.
+- Added reusable audit/security utility helpers:
+  - createAuditLog()
+  - createSecurityEvent()
+  - getRequestAuditContext()
+- Added organisation audit log APIs:
+  - GET /api/org/audit-logs
+  - GET /api/org/audit-logs/:auditLogId
+- Added platform audit log APIs:
+  - GET /api/platform/audit-logs
+  - GET /api/platform/audit-logs/:auditLogId
+  - GET /api/platform/organisations/:organisationId/audit-logs
+- Added organisation security event APIs:
+  - GET /api/org/security-events
+  - GET /api/org/security-events/:securityEventId
+- Added platform security event APIs:
+  - GET /api/platform/security-events
+  - GET /api/platform/security-events/:securityEventId
+  - GET /api/platform/organisations/:organisationId/security-events
+- Added query filters for audit logs:
+  - page
+  - limit
+  - action
+  - resource_type
+  - actor_user_id
+  - from
+  - to
+- Added query filters for security events:
+  - page
+  - limit
+  - event_type
+  - severity
+  - status
+  - actor_user_id
+  - from
+  - to
+- Added security event logging for:
+  - successful login
+  - failed login when the user account can be resolved
+  - logout
+  - personal access token create/revoke
+  - organisation API token create/status update/revoke
+  - organisation auth config update
+  - organisation MFA policy update
+  - organisation SSO config update/test
+- Updated schema status to include SecurityEvent collection and v0.11.0 messaging.
+- Updated seed permissions.
+- Added seed security event for v0.11.0 demo readiness.
+- Updated Swagger/OpenAPI runtime spec.
+- Added static OpenAPI JSON/YAML for v0.11.0.
+
+New permissions:
+- audit.view: View audit logs for the authenticated organisation.
+- audit.platform.view: View platform-level and cross-organisation audit logs.
+- security.events.view: View security events for the authenticated organisation.
+- security.events.platform.view: View platform-level and cross-organisation security events.
+
+Authentication and scope rules:
+- Organisation audit log APIs require UserSessionAuth or PersonalAccessTokenAuth and audit.view.
+- Organisation security event APIs require UserSessionAuth or PersonalAccessTokenAuth and security.events.view.
+- Platform audit log APIs require UserSessionAuth or PersonalAccessTokenAuth and audit.platform.view.
+- Platform security event APIs require UserSessionAuth or PersonalAccessTokenAuth and security.events.platform.view.
+- Personal access token scope checks continue to apply to internal APIs.
+
+SecurityEvent model fields:
+- organisation_id
+- actor_user_id
+- event_type
+- severity
+- status
+- resource_type
+- resource_id
+- ip_address
+- user_agent
+- details
+- createdAt
+- updatedAt
+
+Files added:
+- apps/api/src/models/securityEvent.model.ts
+- apps/api/src/utils/audit.ts
+- apps/api/src/modules/auditLogs/auditLog.routes.ts
+- apps/api/src/modules/securityEvents/securityEvent.routes.ts
+- docs/VERSION_CONTEXT_v0.11.0.txt
+- docs/openapi/openapi.v0.11.0.json
+- docs/openapi/openapi.v0.11.0.yaml
+
+Files updated:
+- package.json
+- package-lock.json
+- README.md
+- CHANGELOG.md
+- apps/api/package.json
+- apps/web/package.json
+- apps/api/src/docs/openapi.ts
+- apps/api/src/models/index.ts
+- apps/api/src/routes/index.ts
+- apps/api/src/modules/auth/auth.routes.ts
+- apps/api/src/modules/organisationAuthConfig/organisationAuthConfig.routes.ts
+- apps/api/src/modules/organisationMfaPolicy/organisationMfaPolicy.routes.ts
+- apps/api/src/modules/organisationSsoConfig/organisationSsoConfig.routes.ts
+- apps/api/src/modules/personalAccessTokens/personalAccessToken.routes.ts
+- apps/api/src/modules/organisationApiTokens/organisationApiToken.routes.ts
+- apps/api/src/modules/schema/schema.routes.ts
+- apps/api/src/scripts/seed.ts
+- apps/api/src/utils/features.ts
+
+Validation performed:
+- npm install --ignore-scripts
+- npm run build -w apps/api
+- npm run build -w apps/web
+
+Known limitations / next build notes:
+- The audit/security APIs are read-only visibility APIs in v0.11.0.
+- Failed login events are only stored when the submitted email maps to an existing user and organisation. This avoids needing a platform-level unaffiliated event store in the current organisation-first model.
+- Compute allocation and compute jobs remain skipped from the core foundation and can be added later as optional modules.
+- A future v0.12.0 build should expand test coverage and optionally add UI pages for audit/security visibility.

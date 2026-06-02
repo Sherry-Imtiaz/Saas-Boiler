@@ -1,0 +1,65 @@
+SaaS Boilerplate Version Context
+Version: v0.8.2
+Name: SSO Provider Configuration Foundation
+
+Core tenant rule:
+Organisation -> Users. Users belong to one organisation only. No user can exist without an organisation.
+
+Current build position:
+v0.8.2 builds on v0.8.1 by adding provider configuration for future SSO/OIDC login. The application still supports native login. Real OIDC redirect/callback authentication is not implemented yet.
+
+New APIs:
+- GET /api/public/organisation-sso-options/:identifier
+- GET /api/org/sso-config/supported-providers
+- GET /api/org/sso-config
+- PATCH /api/org/sso-config
+- POST /api/org/sso-config/test
+
+New permissions:
+- organisation.sso.view
+- organisation.sso.manage
+
+Supported provider profiles:
+- keycloak
+- azure_ad
+- okta
+- google
+- custom_oidc
+- custom
+
+SSO configuration fields:
+- enabled
+- provider
+- protocol
+- issuer_url
+- discovery_url
+- authorization_endpoint
+- token_endpoint
+- userinfo_endpoint
+- jwks_uri
+- logout_endpoint
+- client_id
+- client_secret_ref
+- scopes
+- response_type
+- pkce_enabled
+- require_verified_email
+- redirect_uri
+- post_logout_redirect_uri
+- claim_mapping
+- group_role_mapping
+
+Architecture note:
+The SaaS application stores SSO configuration, validates configuration shape, and later will use it to start/complete OIDC login flows. Identity providers such as Keycloak, Entra ID and Okta should perform MFA challenges when MFA policy is IdP-enforced. The app should later verify claims such as amr/acr to know MFA was satisfied.
+
+Security note:
+The app stores client_secret_ref, not a raw provider secret. The secret reference should point to a future secret manager or environment-managed secret.
+
+Swagger/OpenAPI:
+Every new API is documented under Internal or External tags with authentication and permission requirements. Static OpenAPI files are included under docs/openapi/openapi.v0.8.2.json and docs/openapi/openapi.v0.8.2.yaml.
+
+Frontend:
+The React admin UI now includes an SSO Config page with provider templates, OIDC metadata fields, claim mapping fields, public options debug output, and validation result display.
+
+Next planned build:
+v0.9.0 - Feature Entitlements, unless an additional v0.8.x SSO/MFA refinement is required first.

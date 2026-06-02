@@ -1,0 +1,110 @@
+SaaS Boilerplate Version Context
+Version: v0.9.0
+Build Name: Feature Entitlements
+Date: 2026-05-21
+
+Core Architecture Rule
+- Organisation is the parent tenant entity.
+- Users belong to exactly one organisation.
+- No user can exist without an organisation.
+- Tenant-owned records must resolve organisation context from the authenticated token/session, not from untrusted frontend input.
+
+Previously Completed Foundation
+- v0.1.0 Application Skeleton
+- v0.1.1 Swagger Documentation Foundation
+- v0.2.0 MongoDB Schema Foundation
+- v0.3.0 Organisation Module
+- v0.4.0 Organisation-Owned User Module
+- v0.5.0 Native Authentication and Session Foundation
+- v0.6.0 RBAC Foundation
+- v0.6.1 Token Scope Foundation
+- v0.6.2 Personal Access Token Module
+- v0.6.3 Organisation API Token Foundation
+- v0.6.4 Internal Admin UI Foundation
+- v0.7.0 Organisation Login Branding
+- v0.7.1 Organisation Branding Assets and Theme Configuration
+- v0.8.0 Organisation Auth Configuration
+- v0.8.1 MFA Policy Foundation
+- v0.8.2 SSO Provider Configuration Foundation
+
+v0.9.0 Additions
+- Added feature catalogue foundation.
+- Added organisation feature entitlement state.
+- Added feature catalogue API: GET /api/features/catalogue.
+- Added organisation feature read API: GET /api/org/features.
+- Added organisation feature update API: PATCH /api/org/features.
+- Added feature entitlement audit logging.
+- Added backend feature gate helper: requireFeature(feature_key).
+- Added React admin UI Feature Entitlements page.
+- Updated seed data with default organisation features.
+- Updated Swagger/OpenAPI docs and static OpenAPI files.
+
+Feature Access Rule
+- A feature being enabled does not grant access by itself.
+- A user/token still needs RBAC permission or token scope.
+- Future protected module routes should check both feature and permission.
+
+Example
+- Organisation feature compute_jobs = true.
+- User permission compute.jobs.create = true.
+- Result: user can create compute jobs after the compute jobs module exists.
+
+If compute_jobs = false, the user must still be blocked even if they have compute.jobs.create.
+
+Feature Catalogue in v0.9.0
+- dashboard
+- user_management
+- role_management
+- branding
+- auth_configuration
+- sso_configuration
+- mfa_policy
+- personal_access_tokens
+- organisation_api_tokens
+- file_uploads
+- compute_allocation
+- compute_jobs
+- audit_logs
+- advanced_reporting
+- external_api_access
+
+New APIs
+1. GET /api/features/catalogue
+   Tag: Internal
+   Auth: UserSessionAuth or PersonalAccessTokenAuth
+   Permission: features.view
+   Purpose: Return global feature catalogue.
+
+2. GET /api/org/features
+   Tag: Internal
+   Auth: UserSessionAuth or PersonalAccessTokenAuth
+   Permission: features.view
+   Purpose: Return feature entitlement state for the authenticated organisation.
+
+3. PATCH /api/org/features
+   Tag: Internal
+   Auth: UserSessionAuth or PersonalAccessTokenAuth
+   Permission: features.manage
+   Purpose: Enable/disable organisation feature flags.
+
+Frontend Updates
+- Added Features navigation item.
+- Added catalogue and organisation feature summary.
+- Added table showing feature category, enabled state, default state and limits.
+- Added toggle buttons to enable/disable organisation features.
+- Added feature enforcement notes in UI.
+
+Seed Updates
+- Demo Organisation now receives default feature entitlement map.
+- Organisation Admin role already has features.view and features.manage.
+- Viewer role has features.view only.
+
+Development Rule
+- Every API must be documented in Swagger/OpenAPI.
+- Each API must show Internal or External tag.
+- Each API must show authentication requirements.
+- Each generated zip must include static OpenAPI JSON/YAML and this version context document.
+
+Next Planned Build
+- v0.9.1 - Plan and Subscription Readiness
+- Purpose: add plan model, organisation plan assignment and plan-to-feature readiness without payment integration.

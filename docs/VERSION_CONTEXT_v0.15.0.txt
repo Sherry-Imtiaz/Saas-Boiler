@@ -1,0 +1,46 @@
+SaaS Boilerplate Version Context
+================================
+
+Version: v0.15.0
+Build Name: Deployment Readiness
+Canonical Sequence Position: after v0.14.0 Seed and Installer Scripts, before v0.16.0 Testing Foundations
+
+Summary
+-------
+v0.15.0 prepares the SaaS boilerplate for production-style deployment. It adds deployment environment examples, readiness checks, liveness/readiness endpoints, Windows-friendly deployment wrappers and deployment documentation.
+
+What v0.15.0 Adds
+-----------------
+- API liveness endpoint: GET /api/health/live.
+- API readiness endpoint: GET /api/health/ready.
+- Runtime health metadata updated to v0.15.0.
+- API production environment template: apps/api/.env.production.example.
+- Web production environment template: apps/web/.env.production.example.
+- Deployment readiness script: apps/api/src/scripts/checkDeploymentReadiness.ts.
+- Root npm deployment scripts: check:deployment, build:production, start:production and deploy:check.
+- Windows wrapper scripts: deployment-readiness.cmd, build-production.cmd and start-production-api.cmd.
+- Deployment readiness documentation: docs/DEPLOYMENT_READINESS.md.
+- Production environment checklist: docs/PRODUCTION_ENVIRONMENT_CHECKLIST.md.
+- Static OpenAPI JSON/YAML files for v0.15.0.
+- CHANGELOG and README updates for v0.15.0.
+
+Deployment Readiness Checks
+---------------------------
+The new deployment readiness check validates:
+- NODE_ENV production intent.
+- API_BASE_PATH format.
+- JWT secret quality.
+- OIDC state secret quality.
+- CORS origin production suitability.
+- MongoDB URI production suitability.
+- Azure Blob/local storage production suitability.
+- OIDC plain client secret safety.
+- MongoDB connectivity, unless --skip-db is supplied.
+
+Canonical Next Build
+--------------------
+v0.16.0 - Testing Foundations.
+
+Notes
+-----
+This build does not add automated tests. It prepares the environment, scripts and runtime checks needed before adding formal test coverage.

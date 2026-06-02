@@ -1,0 +1,67 @@
+SaaS Boilerplate Development Context
+Version: v0.19.0
+Build Name: Production UI Rebuild
+Base Version: v0.18.2 - Seed Stabilisation Patch
+
+Purpose
+-------
+v0.19.0 scraps the previous prototype-style admin UI and replaces it with a production-style frontend application shell. The backend remains the v0.18.2 stable backend foundation.
+
+What changed in v0.19.0
+-----------------------
+1. Production-style application shell
+   - Left sidebar navigation.
+   - Workspace switcher for Organisation and Platform areas.
+   - Top header with health status, refresh and logout actions.
+   - Reusable cards, metrics, tables, forms, badges, empty states and notices.
+
+2. Authentication UI
+   - Tenant-branded login screen.
+   - Organisation slug lookup.
+   - Password login support.
+   - SSO/OIDC login launch support.
+   - Login branding uses public tenant login configuration where available.
+
+3. Organisation Owner workspace
+   - Dashboard.
+   - User management.
+   - Role and permission visibility.
+   - Branding and login customisation.
+   - SSO/OIDC settings.
+   - MFA policy.
+   - Personal access tokens.
+   - Organisation API tokens.
+   - Files/assets.
+   - Tenant audit logs and security events.
+   - Developer/API context.
+
+4. Platform Owner workspace
+   - Platform dashboard.
+   - Organisation management.
+   - Organisation status control.
+   - Plan catalogue and plan assignment.
+   - Cross-tenant audit logs.
+   - Cross-tenant security events.
+   - System and developer context.
+
+5. Preserved foundations
+   - Backend APIs.
+   - MongoDB models.
+   - Auth/OIDC/RBAC/token/audit/security/file/plan/feature modules.
+   - Seed scripts and local validation workflow.
+   - Deployment readiness scripts.
+   - Testing foundations.
+
+Validation
+----------
+The build should be validated using:
+
+npm install --registry=https://registry.npmjs.org/
+npm run build
+npm test
+node scripts/setup-local.mjs
+npm run check:deployment -- --skip-db
+
+Next recommended build
+----------------------
+v0.19.1 - UI Stabilisation and Local Validation.

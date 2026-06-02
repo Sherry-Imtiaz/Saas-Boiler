@@ -1,0 +1,130 @@
+SaaS Boilerplate Development Context
+Version: v0.1.1
+Date: 2026-05-21
+
+1. Core Product Direction
+
+This software is being developed as a reusable SaaS boilerplate for a future multi-user, multi-tenant application.
+
+The foundation must support:
+
+- Organisation-owned users.
+- Organisation-specific login configuration.
+- Native authentication now, SSO later.
+- Granular RBAC.
+- Organisation-specific feature access.
+- Organisation-specific data and file ownership.
+- Organisation-specific compute allocation.
+- Future uploaded data, images, files, and generated outputs.
+- Audit logging and security traceability.
+
+2. Tenant/User Rule
+
+The tenant model is:
+
+Organisation -> Users
+
+Rules:
+
+- A user belongs to exactly one organisation.
+- A user cannot exist without an organisation.
+- Users are not global independent identities.
+- Every user document must include organisation_id.
+- The same email should not be reused across multiple organisations unless this rule is explicitly changed later.
+- Every tenant-owned business document must include organisation_id.
+
+3. Database Direction
+
+MongoDB is the main application/software database.
+
+The design should be document-first, but tenant-safe.
+
+Current planned collections:
+
+- organisations
+- users
+- roles
+- permissions
+- audit_logs
+- file_assets
+- compute_pools
+- compute_jobs
+- sso_identity_mappings
+
+4. Current Build State
+
+v0.1.0 created the application skeleton:
+
+- Node.js/Express TypeScript API.
+- React/Vite TypeScript frontend.
+- MongoDB connection with Mongoose.
+- Docker Compose for MongoDB and Mongo Express.
+- Health check endpoint.
+- Basic frontend shell.
+
+v0.1.1 adds the documentation foundation:
+
+- Swagger/OpenAPI specification.
+- Swagger UI endpoint.
+- OpenAPI JSON endpoint.
+- API documentation policy.
+- Version context document.
+
+5. API Documentation Rule Going Forward
+
+Every API created from v0.1.1 onward must be documented in Swagger/OpenAPI.
+
+Each API must include:
+
+- Internal or External tag.
+- Authentication requirement.
+- Summary.
+- Description.
+- Request schema, if applicable.
+- Response schema.
+- Tenant/organisation access notes, if applicable.
+
+Swagger/OpenAPI files must be saved into each generated zip.
+
+Required files per build:
+
+- docs/openapi/openapi.vX.X.X.json
+- docs/openapi/openapi.vX.X.X.yaml
+- docs/VERSION_CONTEXT_vX.X.X.txt
+
+6. Current APIs
+
+GET /api/health
+
+- Tag: External
+- Authentication: None
+- Purpose: Infrastructure/API health check.
+- Returns: API service status, version, MongoDB ready state, and timestamp.
+
+GET /api/openapi.json
+
+- Tag: Internal
+- Authentication: None in v0.1.1
+- Purpose: Returns current OpenAPI JSON specification.
+
+GET /api/docs
+
+- Tag: Internal
+- Authentication: None in v0.1.1
+- Purpose: Swagger UI for API review during development.
+
+7. Next Planned Build
+
+v0.2.0 - MongoDB Schema Foundation
+
+Planned additions:
+
+- Organisation model.
+- User model.
+- Role model.
+- Permission model.
+- Audit log model.
+- MongoDB indexes.
+- Seed script foundation.
+- Swagger/OpenAPI updates for any new APIs.
+- Updated version context document.

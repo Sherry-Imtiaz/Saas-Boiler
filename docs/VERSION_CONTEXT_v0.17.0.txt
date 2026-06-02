@@ -1,0 +1,68 @@
+SaaS Boilerplate Version Context
+Version: v0.17.0
+Build Name: Authentication UI + Organisation Owner Admin UI
+
+Source Baseline:
+- Built from v0.16.0 - Testing Foundations.
+
+Purpose:
+- Add the first complete tenant-facing UI layer for Organisation Owners/Admins.
+- Provide tenant-branded login screens using public organisation login configuration.
+- Provide practical tenant admin pages for existing backend features and settings.
+
+Major Additions:
+1. Authentication UI
+   - Tenant/organisation login lookup.
+   - Tenant-branded login screen.
+   - Email/password login.
+   - SSO/OIDC launch button.
+   - Logout flow.
+
+2. Organisation Owner Dashboard
+   - User count.
+   - Role count.
+   - Enabled feature count.
+   - Plan status.
+   - SSO/MFA status.
+   - Token counts.
+   - Recent audit and security events.
+
+3. Organisation User Management
+   - List organisation users.
+   - Create organisation users.
+   - Edit user email/display name/roles.
+   - Activate/disable users.
+   - Enforce organisation-only access through existing backend guards.
+
+4. Organisation Admin Screens
+   - Organisation profile/settings summary.
+   - Role and permission visibility.
+   - Branding and theme management.
+   - SSO/OIDC configuration.
+   - MFA policy.
+   - Personal Access Tokens.
+   - Organisation API Tokens.
+   - Audit logs.
+   - Security events.
+   - Plan and feature entitlement view.
+   - File/asset visibility.
+   - Developer/API context.
+
+5. Documentation
+   - Added ORGANISATION_OWNER_ADMIN_UI.md.
+   - Added this version context file.
+   - Added static OpenAPI v0.17.0 files.
+
+Security Notes:
+- The UI does not replace backend RBAC or tenant isolation.
+- Token values are displayed only once at creation.
+- Client secret references are stored as references only; raw client secret values should not be displayed.
+- Organisation Owner UI is tenant-scoped only.
+- Platform Owner/Admin UI is intentionally deferred to v0.18.0.
+
+Validation Targets:
+- npm install --ignore-scripts --no-audit --no-fund
+- npm run build -w apps/api
+- npm run build -w apps/web
+- npm run build
+- npm test

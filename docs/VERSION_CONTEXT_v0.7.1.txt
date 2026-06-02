@@ -1,0 +1,78 @@
+SaaS Boilerplate Version Context
+Version: v0.7.1
+Title: Organisation Branding Assets and Theme Configuration
+Date: 2026-05-21
+
+Core architecture rule:
+- Organisation -> Users.
+- A user belongs to one organisation only.
+- A user cannot exist without an organisation.
+- Tenant-owned records remain scoped to organisation_id.
+
+Build context carried forward:
+- v0.5.0 added native login and bearer user session tokens.
+- v0.6.0 added RBAC permission enforcement.
+- v0.6.1 formalised token type, audience and scope metadata.
+- v0.6.2 added user-owned Personal Access Tokens.
+- v0.6.3 added organisation-owned Organisation API Tokens for external/system-to-system access.
+- v0.6.4 added the first internal admin UI foundation.
+- v0.7.0 added organisation login branding and public login configuration lookup.
+
+What v0.7.1 adds:
+- Organisation-specific branding asset upload APIs.
+- Supported asset types: logo, favicon, login-background, sidebar-logo, email-logo.
+- Branding assets are uploaded as base64 JSON and saved to local development storage:
+  apps/api/storage/organisations/{organisation_id}/branding/
+- Public asset serving endpoint:
+  GET /api/public/assets/organisations/:organisationId/branding/:fileName
+- Public organisation theme endpoint:
+  GET /api/public/organisation-theme/:identifier
+- Authenticated organisation theme APIs:
+  GET /api/org/branding/theme
+  PATCH /api/org/branding/theme
+- Theme YAML export/import APIs:
+  GET /api/org/branding/theme-yaml
+  POST /api/org/branding/theme-yaml
+- Expanded organisation branding fields:
+  logo_url, favicon_url, login_background_url, sidebar_logo_url, email_logo_url, primary_colour, secondary_colour, login_title, login_subtitle, support_email.
+- Added organisation theme tokens:
+  mode, primary_colour, secondary_colour, accent_colour, background_colour, surface_colour, text_colour, muted_text_colour, border_colour, success_colour, warning_colour, danger_colour, info_colour, border_radius, font_family.
+- Added organisation.branding.view and organisation.branding.manage permissions.
+- Updated seed data to include the new permissions and default theme values.
+- Updated frontend Branding page with asset uploads, theme editor, YAML export/import and live preview.
+- Updated Swagger/OpenAPI documentation for every new API.
+- Added static OpenAPI JSON/YAML files for v0.7.1.
+
+API documentation rule:
+Every API created for this software must include Swagger/OpenAPI documentation with:
+- Internal or External tag.
+- Authentication requirement.
+- Required permission or token scope.
+- Request schema where applicable.
+- Response schema.
+- Tenant/organisation access notes where applicable.
+
+Authentication model active in v0.7.1:
+- UserSessionAuth: internal user/admin access.
+- PersonalAccessTokenAuth: user-owned long-lived access for Postman/scripts.
+- OrganisationApiTokenAuth: external/system-to-system integration access.
+- ServiceAccountTokenAuth: reserved for later.
+
+New API security notes:
+- Public theme and asset APIs are External and unauthenticated.
+- Branding/theme management APIs are Internal and require UserSessionAuth or PersonalAccessTokenAuth.
+- Branding/theme management APIs require organisation.branding.view or organisation.branding.manage.
+
+Verification highlights:
+1. Run seed and dev server.
+2. Log in with demo-organisation / admin@example.com / ChangeMe123!.
+3. Open the Branding page.
+4. Upload a logo or login background image.
+5. Confirm the returned asset URL is under /api/public/assets/organisations/...
+6. Update theme colours and confirm the preview changes.
+7. Export YAML, edit it, import it, and confirm theme changes are applied.
+8. Confirm /api/public/organisation-theme/demo-organisation returns branding and theme.
+9. Confirm Swagger includes v0.7.1 endpoints.
+
+Next planned build:
+v0.8.0 - Organisation Auth Configuration.

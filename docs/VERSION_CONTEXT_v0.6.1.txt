@@ -1,0 +1,191 @@
+SaaS Boilerplate Version Context
+Version: v0.6.1
+Release Name: Token Scope Foundation
+Date: 2026-05-21
+
+CORE PRODUCT RULES
+------------------
+- Organisation is the parent tenant entity.
+- Users belong to exactly one organisation.
+- A user cannot exist without an organisation_id.
+- Backend routes must derive organisation context from authenticated user/token context, not from normal request bodies.
+- MongoDB is the main software database.
+- Every API must be documented in Swagger/OpenAPI with Internal or External tag and authentication requirements.
+- Every generated build zip must include static OpenAPI JSON/YAML and this version context document.
+
+BUILD HISTORY TO DATE
+---------------------
+- v0.1.0: Application skeleton.
+- v0.1.1: Swagger/OpenAPI documentation foundation.
+- v0.2.0: MongoDB schema foundation.
+- v0.3.0: Organisation module.
+- v0.4.0: Organisation-owned user module.
+- v0.5.0: Native authentication and session foundation.
+- v0.6.0: RBAC foundation.
+- v0.6.1: Token type, audience and scope foundation.
+
+WHAT v0.6.1 ADDS
+----------------
+- Formal token type definitions:
+  - user_session_token
+  - personal_access_token
+  - organisation_api_token
+  - service_account_token
+- Formal token audience definitions:
+  - internal
+  - external
+  - service
+- Default user session token scopes:
+  - internal:user
+  - auth:me
+  - rbac:permissions
+- Token metadata embedded into login-issued bearer tokens:
+  - token_type
+  - audience
+  - scopes
+  - token_id, currently null for stateless user session tokens
+- Token context is returned by:
+  - POST /api/auth/login
+  - GET /api/auth/me
+  - GET /api/auth/token-context
+- Token guard helpers added:
+  - requireTokenType()
+  - requireTokenAudience()
+  - requireTokenScope()
+- TokenRecordModel added as storage foundation for future long-lived tokens.
+- Swagger/OpenAPI authentication schemes separated for future token types.
+
+ACTIVE TOKEN MODEL IN v0.6.1
+----------------------------
+Active token type:
+- user_session_token
+
+Active authentication use:
+- User logs in through POST /api/auth/login.
+- API returns a short-lived bearer token.
+- Frontend, admin UI and Postman use this token.
+- Internal APIs use user_session_token + RBAC permissions.
+
+Current Postman rule:
+- Use the access_token returned by POST /api/auth/login.
+- Personal Access Tokens are not implemented yet.
+
+PLANNED TOKEN MODEL
+-------------------
+- v0.6.2: Personal Access Token Module.
+  - User-owned long-lived tokens for Postman, scripts and developer automation.
+  - Tokens must be hashed before storage, scoped, expirable, revocable and auditable.
+
+- v0.6.3: Organisation API Token Foundation.
+  - Organisation-owned tokens for external/system-to-system integrations.
+  - Tokens must be scoped to organisation, features and external API permissions.
+
+- Future: Service Account Tokens.
+  - Non-human service identities where needed.
+  - Must be scoped, auditable and revocable.
+
+NEW/UPDATED FILES
+-----------------
+- apps/api/src/utils/tokenTypes.ts
+- apps/api/src/models/tokenRecord.model.ts
+- apps/api/src/utils/jwt.ts
+- apps/api/src/middleware/auth.ts
+- apps/api/src/modules/auth/auth.routes.ts
+- apps/api/src/modules/schema/schema.routes.ts
+- apps/api/src/scripts/seed.ts
+- apps/api/src/docs/openapi.ts
+- docs/openapi/openapi.v0.6.1.json
+- docs/openapi/openapi.v0.6.1.yaml
+- docs/VERSION_CONTEXT_v0.6.1.txt
+- README.md
+- CHANGELOG.md
+- docs/ARCHITECTURE.md
+
+NEW API IN v0.6.1
+-----------------
+GET /api/auth/token-context
+- Tag: External
+- Authentication: UserSessionAuth bearer token required
+- Active token type: user_session_token
+- Audience: internal
+- Purpose: return current token context, user context, resolved RBAC permissions and token policy roadmap.
+
+SEED UPDATES
+------------
+New permissions added:
+- tokens.policy.view
+- tokens.personal.manage
+- tokens.organisation.manage
+- tokens.service.manage
+
+Seed audit action:
+- seed.v0.6.1
+
+MONGODB COLLECTIONS CURRENTLY DEFINED
+-------------------------------------
+- organisations
+- users
+- roles
+- permissions
+- tokenrecords
+- auditlogs
+
+TOKENRECORDS COLLECTION PURPOSE
+-------------------------------
+The tokenrecords collection is introduced in this build as the future storage model for long-lived tokens.
+
+Current user_session_token values are stateless and not persisted in tokenrecords.
+Future Personal Access Tokens, Organisation API Tokens and Service Account Tokens should use tokenrecords with hashed token values.
+
+TokenRecord important fields:
+- organisation_id
+- user_id
+- created_by_user_id
+- token_type
+- token_name
+- token_hash
+- token_prefix
+- audience
+- scopes
+- status
+- expires_at
+- last_used_at
+- revoked_at
+- revoked_by_user_id
+- metadata
+
+SWAGGER/OPENAPI REQUIREMENTS
+----------------------------
+Every new API must include:
+- Internal or External tag.
+- Authentication scheme.
+- Required token type/audience/scope where applicable.
+- Required permission where applicable.
+- Request body schema where applicable.
+- Response schema.
+- Tenant/organisation access notes where applicable.
+
+STATIC OPENAPI FILES FOR THIS VERSION
+-------------------------------------
+- docs/openapi/openapi.v0.6.1.json
+- docs/openapi/openapi.v0.6.1.yaml
+
+BUILD VALIDATION
+----------------
+The following command completed successfully:
+- npm run build
+
+NEXT BUILD
+----------
+v0.6.2 - Personal Access Token Module
+
+Planned next additions:
+- Create personal access token API.
+- List current user's personal access tokens.
+- Revoke personal access token API.
+- Hash token before storage.
+- Token prefix display only.
+- Expiry support.
+- Last-used tracking.
+- Audit logs for create/revoke/use.
+- Swagger/OpenAPI documentation for all token APIs.

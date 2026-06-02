@@ -1,0 +1,84 @@
+SaaS Boilerplate Development Context
+Version: v0.9.1
+Build: Plan and Subscription Readiness
+Date: 2026-05-21
+
+Core architecture rule
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- A user cannot exist without an organisation.
+- Every tenant-owned record must be scoped to organisation_id.
+- Normal user-facing APIs should resolve organisation_id from the authenticated token, not from the frontend.
+
+Current completed foundations
+- Node.js / Express / TypeScript API.
+- React / Vite / TypeScript frontend.
+- MongoDB via Mongoose.
+- Swagger/OpenAPI documentation route and static docs.
+- Organisation module.
+- Organisation-owned user module.
+- Native login and bearer token auth.
+- RBAC foundation.
+- Token scope foundation.
+- Personal Access Tokens.
+- Organisation API Tokens.
+- Internal admin UI foundation.
+- Organisation login branding.
+- Organisation branding assets and theme configuration.
+- Organisation auth configuration.
+- Provider-neutral MFA policy foundation.
+- SSO provider configuration foundation.
+- Feature entitlements.
+
+v0.9.1 additions
+- Added PlanModel and plan catalogue schema.
+- Added seeded plan catalogue: starter, professional, enterprise and custom.
+- Added organisation plan assignment metadata.
+- Added plan feature defaults and plan usage limits.
+- Added plan/subscription status fields: trial, active, past_due, suspended, cancelled and manual.
+- Added plan billing mode fields: manual, stripe_ready and custom.
+- Added plan readiness APIs.
+- Added plan assignment audit logs.
+- Added plan page in the React admin UI.
+- Added plan permissions: plans.view and plans.manage.
+- Added Plan collection to schema status checks.
+- Updated seed data so the demo organisation is assigned to the professional plan.
+- Updated Swagger/OpenAPI documentation and static OpenAPI files for v0.9.1.
+
+What v0.9.1 does not include
+- No Stripe integration.
+- No payment gateway.
+- No invoices.
+- No tax/GST logic.
+- No subscription webhooks.
+- No usage-based billing charges.
+
+New APIs
+- GET /api/platform/plans
+- POST /api/platform/plans
+- GET /api/platform/plans/:planKey
+- PATCH /api/platform/plans/:planKey
+- GET /api/org/plan
+- GET /api/platform/organisations/:organisationId/plan
+- PATCH /api/platform/organisations/:organisationId/plan
+- POST /api/platform/organisations/:organisationId/plan/apply-defaults
+
+Authentication and permissions
+- All plan APIs are tagged Internal.
+- Plan read APIs require UserSessionAuth or PersonalAccessTokenAuth and plans.view.
+- Plan write/assignment APIs require UserSessionAuth or PersonalAccessTokenAuth and plans.manage.
+
+Plan catalogue defaults
+- starter: basic limits, file uploads enabled, compute disabled.
+- professional: larger limits, external API access enabled, compute allocation ready but compute jobs disabled.
+- enterprise: larger limits, compute jobs, reporting and external APIs enabled.
+- custom: flexible/null limits for manually negotiated tenants.
+
+Operational notes
+- Future file upload and compute builds should read plan limits before accepting resource usage.
+- Feature entitlement checks still remain separate from RBAC permission checks.
+- A plan can define feature defaults, but organisation feature entitlements remain stored on the organisation.
+- Applying a plan can optionally apply plan feature defaults to the organisation.
+
+Next planned build
+- v0.10.0 - File Asset Foundation.

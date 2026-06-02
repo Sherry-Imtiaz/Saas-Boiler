@@ -1,0 +1,102 @@
+SaaS BOILERPLATE VERSION CONTEXT
+Version: v0.6.4
+Build Name: Internal Admin UI Foundation
+Date: 2026-05-21
+
+PURPOSE
+v0.6.4 adds the first usable frontend administration interface for the SaaS boilerplate. The goal is to allow the existing backend foundations to be tested visually from the React/Vite app instead of only through curl, Postman or Swagger UI.
+
+CORE ARCHITECTURE RULES RETAINED
+- Organisation -> Users.
+- A user belongs to exactly one organisation.
+- A user cannot exist without organisation_id.
+- Tenant-owned backend data must be organisation-scoped.
+- Backend APIs must derive organisation context from authenticated token context.
+- Internal user/admin APIs use user_session_token or scoped personal_access_token.
+- External/system-to-system APIs use organisation_api_token.
+
+WHAT v0.6.4 ADDS
+Frontend UI:
+- Native login form using POST /api/auth/login.
+- Local development bearer token storage.
+- Authenticated admin layout with sidebar navigation.
+- Current user and organisation summary banner.
+- Dashboard page for API health, schema status, token context and loaded counts.
+- Role management page with role listing and test role create/delete workflow.
+- Personal Access Token page with create/list/revoke workflow.
+- Organisation API Token page with create/list/status/revoke workflow.
+- External token tester using GET /api/external/token-context.
+- Developer page with links to health, Swagger UI and OpenAPI JSON.
+
+Backend/API:
+- No new backend API endpoints were introduced in v0.6.4.
+- Existing v0.6.3 APIs remain the backend source for UI behaviour.
+- Health response version updated to 0.6.4.
+- Schema status version/message updated to 0.6.4.
+- Swagger/OpenAPI metadata updated to 0.6.4.
+
+FILES UPDATED
+- apps/web/src/App.tsx
+- apps/web/src/services/api.ts
+- apps/web/src/styles.css
+- apps/api/src/modules/health/health.routes.ts
+- apps/api/src/modules/schema/schema.routes.ts
+- apps/api/src/docs/openapi.ts
+- package.json
+- apps/api/package.json
+- apps/web/package.json
+- README.md
+- docs/ARCHITECTURE.md
+- CHANGELOG.md
+
+FILES ADDED
+- docs/openapi/openapi.v0.6.4.json
+- docs/openapi/openapi.v0.6.4.yaml
+- docs/VERSION_CONTEXT_v0.6.4.txt
+
+HOW TO RUN ON WINDOWS
+From the v0.6.4 project folder:
+
+docker compose up -d
+npm install
+copy apps\api\.env.example apps\api\.env
+copy apps\web\.env.example apps\web\.env
+npm run seed
+npm run dev
+
+LOCAL URLS
+- Frontend: http://localhost:5173
+- API health: http://localhost:4000/api/health
+- Swagger UI: http://localhost:4000/api/docs
+- OpenAPI JSON: http://localhost:4000/api/openapi.json
+- Mongo Express: http://localhost:8081
+
+DEMO LOGIN
+Email: admin@example.com
+Password: ChangeMe123!
+
+VERIFICATION CHECKLIST
+- Frontend loads at http://localhost:5173.
+- Login works using seeded demo credentials.
+- Dashboard displays current user and organisation context.
+- Dashboard displays token context and schema status.
+- Roles page lists seeded roles.
+- Test role can be created and deleted.
+- Personal Access Token can be created, copied once, listed and revoked.
+- Organisation API Token can be created, copied once, listed, status-updated and revoked.
+- External token tester validates a valid organisation_api_token.
+- Swagger UI still loads at /api/docs.
+- OpenAPI JSON still loads at /api/openapi.json.
+- npm run build completes successfully.
+
+LIMITATIONS
+- This is a development/admin testing UI, not the final polished product UI.
+- The login screen is generic and not organisation-branded yet.
+- Platform admin vs organisation admin UI separation is still future work.
+- Full user management UI is not included yet.
+- Final production token storage handling needs additional hardening.
+- Service account token support remains planned for a future build.
+
+NEXT BUILD
+v0.7.0 - Organisation Login Branding
+This will build on the v0.6.4 frontend foundation and add organisation-specific login branding/configuration.
