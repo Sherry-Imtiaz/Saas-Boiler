@@ -187,7 +187,7 @@ function formatDate(value?: string | null): string {
 }
 
 function shortId(value = '', start = 10, end = 6): string {
-  return value.length > start + end + 4 ? `${value.slice(0, start)}…${value.slice(-end)}` : value || '-';
+  return value.length > start + end + 4 ? `${value.slice(0, start)}...${value.slice(-end)}` : value || '-';
 }
 
 function asArrayCsv(values: string[] | undefined): string {
@@ -255,7 +255,10 @@ function StatusBadge({ value, tone }: { value: string | boolean | undefined | nu
 function MetricCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
     <article className="metric-card">
-      <span>{label}</span>
+      <div className="metric-card-top">
+        <span>{label}</span>
+        <i aria-hidden="true" />
+      </div>
       <strong>{value}</strong>
       {hint ? <small>{hint}</small> : null}
     </article>
@@ -751,20 +754,33 @@ export function App() {
     return (
       <main className="auth-layout" style={{ '--tenant-primary': activeTheme.primary_colour ?? activeBranding.primary_colour ?? '#2563eb', '--tenant-secondary': activeTheme.secondary_colour ?? activeBranding.secondary_colour ?? '#0f172a' } as React.CSSProperties}>
         <section className="auth-hero">
-          <span className="eyebrow">SaaS Boilerplate v1.0.0</span>
-          <h1>Production-ready multi-tenant SaaS control centre.</h1>
-          <p>A rebuilt interface for tenant-branded authentication, organisation administration, and platform ownership.</p>
-          <div className="hero-pills">
-            <span>OIDC / SSO ready</span>
-            <span>Organisation-first</span>
-            <span>Audit enabled</span>
+          <div className="auth-brandline">
+            <div className="brand-mark">S</div>
+            <strong>Saas Boiler</strong>
+          </div>
+          <h1>Launch a multi-tenant SaaS with the hard parts already wired.</h1>
+          <p>Tenant branding, users, roles, SSO, MFA, API tokens, plans, audit logs, and platform operations in one production-minded starter.</p>
+          <div className="auth-showcase" aria-label="Saas Boiler product preview">
+            <div className="showcase-toolbar">
+              <span>Workspace command center</span>
+              <StatusBadge value="Ready" />
+            </div>
+            <div className="showcase-grid">
+              <div><strong>{health?.status ?? 'OK'}</strong><span>API health</span></div>
+              <div><strong>{ssoLoginEnabled ? 'On' : 'Ready'}</strong><span>SSO configured</span></div>
+              <div><strong>{nativeLoginEnabled ? 'Open' : 'SSO'}</strong><span>Login policy</span></div>
+            </div>
+            <div className="showcase-table">
+              <div><span>Users</span><strong>Roles scoped</strong></div>
+              <div><span>Plans</span><strong>Professional plan</strong></div>
+              <div><span>Security</span><strong>MFA policy</strong></div>
+            </div>
           </div>
         </section>
         <section className="auth-panel">
           <div className="brand-lockup">
             {activeBranding.logo_url ? <img src={activeBranding.logo_url} alt="Organisation logo" /> : <div className="brand-mark">S</div>}
             <div>
-              <span className="eyebrow">Tenant login</span>
               <h2>{activeBranding.login_title || loginConfig?.organisation.name || 'Sign in'}</h2>
               <p>{activeBranding.login_subtitle || 'Use your organisation account to continue.'}</p>
             </div>
@@ -777,7 +793,7 @@ export function App() {
               <>
                 <TextField label="Email" value={loginEmail} onChange={setLoginEmail} />
                 <TextField label="Password" value={loginPassword} onChange={setLoginPassword} type="password" />
-                <button className="button primary field-full" type="submit" disabled={loading}>{loading ? 'Working…' : 'Sign in'}</button>
+                <button className="button primary field-full" type="submit" disabled={loading}>{loading ? 'Working...' : 'Sign in'}</button>
               </>
             ) : <EmptyState title="Password login disabled" message="This organisation is configured to use SSO only." />}
             {ssoLoginEnabled ? <button type="button" className="button ghost field-full" onClick={() => void handleSsoStart()} disabled={loading}>Continue with SSO</button> : null}
@@ -817,9 +833,13 @@ export function App() {
         <div className="sidebar-brand">
           <div className="brand-mark">S</div>
           <div>
-            <strong>Splink SaaS</strong>
+            <strong>Saas Boiler</strong>
             <span>v1.0.0</span>
           </div>
+        </div>
+        <div className="sidebar-context">
+          <span>Tenant operations</span>
+          <strong>{auth.organisation.slug}</strong>
         </div>
         <div className="workspace-switcher">
           <button className={workspace === 'organisation' ? 'active' : ''} onClick={() => switchWorkspace('organisation')}>Organisation</button>
@@ -836,16 +856,20 @@ export function App() {
             </div>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <span>API health</span>
+          <StatusBadge value={health?.status ?? 'unknown'} />
+        </div>
       </aside>
       <section className="main-stage">
         <header className="topbar">
           <div>
-            <span className="eyebrow">{workspace === 'platform' ? 'Platform owner workspace' : auth.organisation.name}</span>
-            <h1>{workspace === 'platform' ? 'Platform administration' : 'Organisation administration'}</h1>
+            <span className="eyebrow">{workspace === 'platform' ? 'Platform owner' : auth.organisation.name}</span>
+            <h1>{workspace === 'platform' ? 'Platform command center' : 'Workspace command center'}</h1>
           </div>
           <div className="topbar-actions">
             <StatusBadge value={health?.status ?? 'unknown'} />
-            <button className="button secondary" onClick={() => void refreshAll()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+            <button className="button secondary" onClick={() => void refreshAll()} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</button>
             <button className="button ghost" onClick={() => void handleLogout()}>Logout</button>
           </div>
         </header>
@@ -899,12 +923,42 @@ export function App() {
 
   function OrganisationDashboard() {
     const enabledFeatures = organisationFeatures?.features.filter((feature) => feature.enabled).length ?? 0;
+    const featureTotal = featureCatalogue?.features.length ?? 0;
+    const featureProgress = featureTotal > 0 ? Math.round((enabledFeatures / featureTotal) * 100) : 0;
     return (
       <>
-        <SectionHeader eyebrow="Organisation owner" title="Tenant command centre" description="A clean overview of identity, security, plan and operational status for the current organisation." />
+        <section className="dashboard-hero">
+          <div>
+            <span className="eyebrow">Tenant operations</span>
+            <h2>Run {auth!.organisation.name} from one operational cockpit.</h2>
+            <p>Manage users, identity policy, plan entitlements, tokens, files, and audit history without leaving the workspace.</p>
+            <div className="hero-actions">
+              <button className="button primary" onClick={() => setView('org-users')}>Create user</button>
+              <button className="button secondary" onClick={() => setView('org-identity')}>Review identity</button>
+            </div>
+          </div>
+          <div className="hero-status-panel">
+            <div className="panel-row">
+              <span>Professional plan</span>
+              <strong>{String(organisationPlan?.plan_assignment?.plan_key ?? 'No plan assigned')}</strong>
+            </div>
+            <div className="panel-row">
+              <span>SSO configured</span>
+              <StatusBadge value={ssoConfigData?.sso_config.enabled ?? false} />
+            </div>
+            <div className="panel-row">
+              <span>MFA policy</span>
+              <StatusBadge value={mfaData?.mfa_policy.enabled ?? false} />
+            </div>
+            <div className="progress-card">
+              <div><span>Feature coverage</span><strong>{featureProgress}%</strong></div>
+              <div className="progress-rail" style={{ '--progress': `${featureProgress}%` } as React.CSSProperties}><span /></div>
+            </div>
+          </div>
+        </section>
         <div className="metric-grid">
           <MetricCard label="Users" value={users.length} hint="Current tenant users" />
-          <MetricCard label="Enabled features" value={enabledFeatures} hint={`${featureCatalogue?.features.length ?? 0} available`} />
+          <MetricCard label="Enabled features" value={enabledFeatures} hint={`${featureTotal} available`} />
           <MetricCard label="SSO" value={ssoConfigData?.sso_config.enabled ? 'Enabled' : 'Disabled'} hint={ssoConfigData?.sso_config.provider ?? 'No provider'} />
           <MetricCard label="MFA" value={mfaData?.mfa_policy.enabled ? 'Enabled' : 'Disabled'} hint={mfaData?.mfa_policy.enforcement_mode ?? 'Policy not loaded'} />
         </div>
@@ -931,6 +985,21 @@ export function App() {
                 { label: 'Date', render: (row) => formatDate(row.created_at ?? row.createdAt) }
               ]}
             />
+          </article>
+        </div>
+        <div className="two-column">
+          <article className="card activity-card">
+            <SectionHeader title="Audit trail" description="Administrative activity across the tenant." />
+            <AuditTable rows={auditLogs.slice(0, 5)} />
+          </article>
+          <article className="card activity-card">
+            <SectionHeader title="Developer readiness" description="Health and API surfaces for integration work." />
+            <dl className="details-list">
+              <div><dt>API health</dt><dd><StatusBadge value={health?.status ?? 'Unknown'} /></dd></div>
+              <div><dt>Readiness</dt><dd><StatusBadge value={readiness?.status ?? 'Unknown'} /></dd></div>
+              <div><dt>API base</dt><dd>{apiBaseUrl.replace(/^https?:\/\//, '')}</dd></div>
+              <div><dt>Files</dt><dd>{files.length} stored assets</dd></div>
+            </dl>
           </article>
         </div>
       </>
@@ -1176,7 +1245,35 @@ export function App() {
     const activeOrgs = platformOrganisations.filter((organisation) => organisation.status === 'active').length;
     return (
       <>
-        <SectionHeader eyebrow="Platform owner" title="Platform command centre" description="A global view of tenants, plans, readiness and cross-tenant security signals." />
+        <section className="dashboard-hero platform">
+          <div>
+            <span className="eyebrow">Platform owner</span>
+            <h2>Operate every tenant, plan, and security signal from one place.</h2>
+            <p>A global command surface for organisations, entitlement defaults, system readiness, and cross-tenant audit visibility.</p>
+            <div className="hero-actions">
+              <button className="button primary" onClick={() => setView('platform-organisations')}>Create organisation</button>
+              <button className="button secondary" onClick={() => setView('platform-plans')}>Manage plans</button>
+            </div>
+          </div>
+          <div className="hero-status-panel">
+            <div className="panel-row">
+              <span>Active tenants</span>
+              <strong>{activeOrgs}</strong>
+            </div>
+            <div className="panel-row">
+              <span>API health</span>
+              <StatusBadge value={health?.status ?? 'Unknown'} />
+            </div>
+            <div className="panel-row">
+              <span>Readiness</span>
+              <StatusBadge value={readiness?.status ?? 'Unknown'} />
+            </div>
+            <div className="showcase-table compact">
+              <div><span>Audit</span><strong>{platformAuditLogs.length} rows</strong></div>
+              <div><span>Security</span><strong>{platformSecurityEvents.length} events</strong></div>
+            </div>
+          </div>
+        </section>
         <div className="metric-grid">
           <MetricCard label="Organisations" value={platformOrganisations.length} />
           <MetricCard label="Active tenants" value={activeOrgs} />

@@ -7,5 +7,6 @@ build/
 coverage/
 *.tsbuildinfo
 logs/
+.qa/
 .vscode/
 .idea/
