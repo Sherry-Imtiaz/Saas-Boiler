@@ -27,6 +27,9 @@ import {
   getPermissions,
   getPersonalAccessTokens,
   getPlanCatalogue,
+  getPlatformOrganisationAuditLogs,
+  getPlatformOrganisationPlan,
+  getPlatformOrganisationSecurityEvents,
   getPlatformAuditLogs,
   getPlatformOrganisations,
   getPlatformSecurityEvents,
@@ -92,11 +95,19 @@ type View =
   | 'org-developer'
   | 'platform-dashboard'
   | 'platform-organisations'
+  | 'platform-tenant-360'
+  | 'identity-sso'
+  | 'identity-mfa'
+  | 'identity-roles'
   | 'platform-plans'
   | 'platform-security'
   | 'platform-system';
 
 type Notice = { type: 'success' | 'error' | 'info'; message: string };
+type TenantTab = 'overview' | 'users' | 'security' | 'billing';
+type IdentityFocus = 'sso' | 'mfa';
+type NavItem = { view: View; label: string; disabled?: boolean; helper?: string };
+type NavSection = { key: string; label: string; items: NavItem[] };
 
 type UserForm = {
   userId: string;
@@ -246,6 +257,89 @@ function parseJsonRecord(value: string, label: string): Record<string, unknown> 
   return parsed as Record<string, unknown>;
 }
 
+function getTenantId(organisation: OrganisationSummary): string {
+  return organisation.id || organisation._id || '';
+}
+
+function readPlanKey(organisation: OrganisationSummary): string {
+  const withPlan = organisation as OrganisationSummary & {
+    plan?: Record<string, unknown> | null;
+    plan_assignment?: { plan_key?: string | null } | null;
+  };
+  const planKey = withPlan.plan_assignment?.plan_key ?? withPlan.plan?.key ?? withPlan.plan?.plan_key ?? withPlan.plan?.name;
+  return typeof planKey === 'string' && planKey.trim() ? planKey : 'Unassigned';
+}
+
+function readPlanName(planResponse: OrganisationPlanResponse | null): string {
+  const planName = planResponse?.plan?.name ?? planResponse?.plan?.key ?? planResponse?.plan_assignment?.plan_key;
+  return typeof planName === 'string' && planName.trim() ? planName : 'Unassigned';
+}
+
+function readBillingMode(planResponse: OrganisationPlanResponse | null): string {
+  const billingMode = planResponse?.plan_assignment?.billing_mode ?? planResponse?.plan?.billing_mode;
+  return typeof billingMode === 'string' && billingMode.trim() ? billingMode : 'Not configured';
+}
+
+function countPlanFeatures(planResponse: OrganisationPlanResponse | null): number {
+  const features = planResponse?.plan?.features;
+  return features && typeof features === 'object' && !Array.isArray(features) ? Object.keys(features).length : 0;
+}
+
+function countPlanLimits(planResponse: OrganisationPlanResponse | null): number {
+  const limits = planResponse?.plan?.limits;
+  return limits && typeof limits === 'object' && !Array.isArray(limits) ? Object.keys(limits).length : 0;
+}
+
+function deriveIdentityStatus(organisation: OrganisationSummary | null): { label: string; tone: 'good' | 'warn' | 'neutral' } {
+  const ssoEnabled = Boolean(organisation?.auth_config?.sso_enabled || organisation?.auth_config?.enforce_sso);
+  const mfaEnabled = Boolean(organisation?.mfa_config?.enabled || organisation?.auth_config?.enforce_mfa);
+  if (ssoEnabled && mfaEnabled) {
+    return { label: 'SSO + MFA ready', tone: 'good' };
+  }
+  if (ssoEnabled || mfaEnabled) {
+    return { label: ssoEnabled ? 'SSO configured' : 'MFA configured', tone: 'warn' };
+  }
+  return { label: 'Native login', tone: 'neutral' };
+}
+
+function deriveTenantHealth(organisation: OrganisationSummary | null, securityEvents: SecurityEventRecord[]): { label: string; tone: 'good' | 'warn' | 'danger' | 'neutral' } {
+  if (!organisation) {
+    return { label: 'No tenant selected', tone: 'neutral' };
+  }
+  if (organisation.status === 'suspended' || organisation.status === 'disabled') {
+    return { label: 'Suspended', tone: 'danger' };
+  }
+  if (securityEvents.some((event) => ['critical', 'high'].includes(event.severity))) {
+    return { label: 'Needs attention', tone: 'warn' };
+  }
+  if (organisation.status === 'active') {
+    return { label: 'Healthy', tone: 'good' };
+  }
+  return { label: organisation.status || 'Unknown', tone: 'neutral' };
+}
+
+function buildAttentionItems(readiness: HealthResponse | null, organisations: OrganisationSummary[], securityEvents: SecurityEventRecord[]): string[] {
+  const items: string[] = [];
+  if (readiness?.status && !readiness.status.toLowerCase().includes('ok') && !readiness.status.toLowerCase().includes('ready')) {
+    items.push(`Readiness is ${readiness.status}`);
+  }
+  const suspendedCount = organisations.filter((organisation) => organisation.status === 'suspended').length;
+  if (suspendedCount > 0) {
+    items.push(`${suspendedCount} suspended tenant${suspendedCount === 1 ? '' : 's'}`);
+  }
+  const highSignalCount = securityEvents.filter((event) => ['critical', 'high'].includes(event.severity)).length;
+  if (highSignalCount > 0) {
+    items.push(`${highSignalCount} high-severity security signal${highSignalCount === 1 ? '' : 's'}`);
+  }
+  return items;
+}
+
+function eventTone(severity: string): 'danger' | 'warn' | 'neutral' {
+  if (severity === 'critical' || severity === 'high') return 'danger';
+  if (severity === 'medium') return 'warn';
+  return 'neutral';
+}
+
 function StatusBadge({ value, tone }: { value: string | boolean | undefined | null; tone?: 'good' | 'warn' | 'danger' | 'neutral' }) {
   const label = typeof value === 'boolean' ? (value ? 'Enabled' : 'Disabled') : value || 'Unknown';
   const resolvedTone = tone ?? (label.toString().toLowerCase().includes('active') || label === 'Enabled' || label.toString().toLowerCase().includes('ok') ? 'good' : label.toString().toLowerCase().includes('disabled') || label.toString().toLowerCase().includes('failed') ? 'danger' : 'neutral');
@@ -376,6 +470,23 @@ export function App() {
   const [platformOrganisations, setPlatformOrganisations] = useState<OrganisationSummary[]>([]);
   const [platformAuditLogs, setPlatformAuditLogs] = useState<AuditLogRecord[]>([]);
   const [platformSecurityEvents, setPlatformSecurityEvents] = useState<SecurityEventRecord[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [tenantSearch, setTenantSearch] = useState('');
+  const [tenantTab, setTenantTab] = useState<TenantTab>('overview');
+  const [tenantLoading, setTenantLoading] = useState(false);
+  const [tenantPlan, setTenantPlan] = useState<OrganisationPlanResponse | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<UserSummary[]>([]);
+  const [tenantAuditLogs, setTenantAuditLogs] = useState<AuditLogRecord[]>([]);
+  const [tenantSecurityEvents, setTenantSecurityEvents] = useState<SecurityEventRecord[]>([]);
+  const [expandedNavSections, setExpandedNavSections] = useState<Record<string, boolean>>({
+    overview: true,
+    tenants: true,
+    identity: true,
+    billing: false,
+    security: false,
+    platform: false,
+    settings: false
+  });
 
   const [userForm, setUserForm] = useState<UserForm>({ userId: '', email: '', displayName: '', firstName: '', lastName: '', password: '', roleIds: [] });
   const [personalTokenForm, setPersonalTokenForm] = useState<TokenForm>({ tokenName: 'Local developer token', expiresInDays: 30, scopes: 'internal:user' });
@@ -391,6 +502,15 @@ export function App() {
   const activeTheme = loginConfig?.organisation.theme ?? brandingData?.theme ?? defaultTheme;
   const nativeLoginEnabled = loginConfig?.login_policy.native_login_enabled !== false;
   const ssoLoginEnabled = Boolean(loginConfig?.login_policy.sso_enabled);
+  const selectedTenant = useMemo(() => platformOrganisations.find((organisation) => getTenantId(organisation) === selectedTenantId) ?? null, [platformOrganisations, selectedTenantId]);
+  const filteredTenants = useMemo(() => {
+    const query = tenantSearch.trim().toLowerCase();
+    if (!query) {
+      return platformOrganisations;
+    }
+    return platformOrganisations.filter((organisation) => [organisation.name, organisation.slug, organisation.status, readPlanKey(organisation)].some((value) => value.toLowerCase().includes(query)));
+  }, [platformOrganisations, tenantSearch]);
+  const attentionItems = useMemo(() => buildAttentionItems(readiness, platformOrganisations, platformSecurityEvents), [readiness, platformOrganisations, platformSecurityEvents]);
 
   async function runTask<T>(task: () => Promise<T>, successMessage?: string): Promise<T | null> {
     setLoading(true);
@@ -488,7 +608,12 @@ export function App() {
         getPlatformSecurityEvents(token, '?limit=12')
       ]);
       const [orgsResult, platformAuditResult, platformSecurityResult] = platformResults;
-      if (orgsResult.status === 'fulfilled') setPlatformOrganisations(orgsResult.value.organisations);
+      if (orgsResult.status === 'fulfilled') {
+        setPlatformOrganisations(orgsResult.value.organisations);
+        if (!selectedTenantId && orgsResult.value.organisations.length > 0) {
+          setSelectedTenantId(getTenantId(orgsResult.value.organisations[0]));
+        }
+      }
       if (platformAuditResult.status === 'fulfilled') setPlatformAuditLogs(platformAuditResult.value.records);
       if (platformSecurityResult.status === 'fulfilled') setPlatformSecurityEvents(platformSecurityResult.value.records);
     }
@@ -609,6 +734,79 @@ export function App() {
     setView(nextWorkspace === 'platform' ? 'platform-dashboard' : 'org-dashboard');
   }
 
+  async function refreshTenant360(tenantId = selectedTenantId) {
+    if (!tenantId || !accessToken) {
+      return;
+    }
+
+    setTenantLoading(true);
+    setTenantPlan(null);
+    setTenantUsers([]);
+    setTenantAuditLogs([]);
+    setTenantSecurityEvents([]);
+    const [usersResult, planResult, auditResult, securityResult] = await Promise.allSettled([
+      getOrganisationUsers(accessToken, tenantId, '?limit=100'),
+      getPlatformOrganisationPlan(accessToken, tenantId),
+      getPlatformOrganisationAuditLogs(accessToken, tenantId, '?limit=12'),
+      getPlatformOrganisationSecurityEvents(accessToken, tenantId, '?limit=12')
+    ]);
+
+    if (usersResult.status === 'fulfilled') setTenantUsers(usersResult.value.users);
+    if (planResult.status === 'fulfilled') setTenantPlan(planResult.value);
+    if (auditResult.status === 'fulfilled') setTenantAuditLogs(auditResult.value.records);
+    if (securityResult.status === 'fulfilled') setTenantSecurityEvents(securityResult.value.records);
+
+    const failures = [usersResult, planResult, auditResult, securityResult].filter((result) => result.status === 'rejected').length;
+    if (failures === 4) {
+      setNotice({ type: 'error', message: 'Tenant details could not be loaded.' });
+    }
+    setTenantLoading(false);
+  }
+
+  useEffect(() => {
+    if (view === 'platform-tenant-360' && selectedTenantId && accessToken) {
+      void refreshTenant360(selectedTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, selectedTenantId, accessToken]);
+
+  function openTenant360(organisation: OrganisationSummary) {
+    const tenantId = getTenantId(organisation);
+    if (!tenantId) {
+      setNotice({ type: 'error', message: 'This tenant is missing an organisation id.' });
+      return;
+    }
+    setWorkspace('platform');
+    setSelectedTenantId(tenantId);
+    setTenantTab('overview');
+    setView('platform-tenant-360');
+  }
+
+  function openPlanManagement(organisation: OrganisationSummary) {
+    setSelectedPlanOrgId(getTenantId(organisation));
+    setView('platform-plans');
+  }
+
+  function handleNavItem(item: NavItem) {
+    if (item.disabled) {
+      setNotice({ type: 'info', message: item.helper ?? 'This section will be enabled in a later slice.' });
+      return;
+    }
+    if (item.view === 'platform-tenant-360' && !selectedTenantId && platformOrganisations[0]) {
+      setSelectedTenantId(getTenantId(platformOrganisations[0]));
+    }
+    if (item.view === 'identity-roles') {
+      setWorkspace('organisation');
+      setView('org-access');
+      return;
+    }
+    setView(item.view);
+  }
+
+  function toggleNavSection(sectionKey: string) {
+    setExpandedNavSections((current) => ({ ...current, [sectionKey]: !current[sectionKey] }));
+  }
+
   async function saveBranding(event: FormEvent) {
     event.preventDefault();
     await runTask(async () => {
@@ -712,6 +910,9 @@ export function App() {
   async function changeOrgStatus(organisation: OrganisationSummary, status: string) {
     await runTask(() => updatePlatformOrganisationStatus(accessToken, organisation.id || organisation._id || '', status), `Organisation ${status}.`);
     await refreshAll();
+    if (getTenantId(organisation) === selectedTenantId) {
+      await refreshTenant360(selectedTenantId);
+    }
   }
 
   async function savePlatformPlan(event: FormEvent) {
@@ -807,25 +1008,42 @@ export function App() {
     );
   }
 
-  const orgNav: Array<{ view: View; label: string; group: string }> = [
-    { view: 'org-dashboard', label: 'Dashboard', group: 'Overview' },
-    { view: 'org-users', label: 'Users', group: 'Identity & Access' },
-    { view: 'org-access', label: 'Roles & permissions', group: 'Identity & Access' },
-    { view: 'org-branding', label: 'Branding & login', group: 'Tenant configuration' },
-    { view: 'org-identity', label: 'SSO & MFA', group: 'Tenant configuration' },
-    { view: 'org-tokens', label: 'Tokens', group: 'Security' },
-    { view: 'org-files', label: 'Files & assets', group: 'Operations' },
-    { view: 'org-observability', label: 'Audit & security', group: 'Operations' },
-    { view: 'org-developer', label: 'Developer', group: 'Developer' }
+  const orgNavSections: NavSection[] = [
+    { key: 'overview', label: 'Overview', items: [{ view: 'org-dashboard', label: 'Workspace Home' }] },
+    { key: 'identity', label: 'Identity', items: [{ view: 'org-users', label: 'Users' }, { view: 'org-access', label: 'Roles & Permissions' }, { view: 'org-identity', label: 'SSO & MFA' }] },
+    { key: 'security', label: 'Security', items: [{ view: 'org-tokens', label: 'Tokens' }, { view: 'org-observability', label: 'Audit & Security' }] },
+    { key: 'settings', label: 'Settings', items: [{ view: 'org-branding', label: 'Branding & Login' }, { view: 'org-files', label: 'Files & Assets' }, { view: 'org-developer', label: 'Developer' }] }
   ];
-  const platformNav: Array<{ view: View; label: string; group: string }> = [
-    { view: 'platform-dashboard', label: 'Platform dashboard', group: 'Overview' },
-    { view: 'platform-organisations', label: 'Organisations', group: 'Tenant management' },
-    { view: 'platform-plans', label: 'Plans & entitlements', group: 'Tenant management' },
-    { view: 'platform-security', label: 'Cross-tenant security', group: 'Security' },
-    { view: 'platform-system', label: 'System & developer', group: 'System' }
+  const platformNavSections: NavSection[] = [
+    { key: 'overview', label: 'Overview', items: [{ view: 'platform-dashboard', label: 'Operator Home' }] },
+    { key: 'tenants', label: 'Tenants', items: [{ view: 'platform-organisations', label: 'Tenant List' }, { view: 'platform-tenant-360', label: 'Tenant 360', disabled: platformOrganisations.length === 0, helper: 'Create or seed a tenant first.' }] },
+    { key: 'identity', label: 'Identity', items: [{ view: 'identity-sso', label: 'SSO Providers' }, { view: 'identity-mfa', label: 'MFA Policy' }, { view: 'org-access', label: 'Roles & Permissions' }] },
+    { key: 'billing', label: 'Billing', items: [{ view: 'platform-plans', label: 'Plans & Entitlements' }] },
+    { key: 'security', label: 'Security', items: [{ view: 'platform-security', label: 'Audit & Security' }] },
+    { key: 'platform', label: 'Platform', items: [{ view: 'platform-system', label: 'System & Developer' }] },
+    { key: 'settings', label: 'Settings', items: [{ view: 'org-branding', label: 'Branding & Login' }, { view: 'org-developer', label: 'Developer Tools' }] }
   ];
-  const navItems = workspace === 'platform' ? platformNav : orgNav;
+  const navSections = workspace === 'platform' ? platformNavSections : orgNavSections;
+  const pageTitles: Record<View, string> = {
+    'org-dashboard': 'Workspace Home',
+    'org-users': 'Users',
+    'org-access': 'Roles & Permissions',
+    'org-branding': 'Branding & Login',
+    'org-identity': 'SSO & MFA',
+    'org-tokens': 'Tokens',
+    'org-files': 'Files & Assets',
+    'org-observability': 'Audit & Security',
+    'org-developer': 'Developer',
+    'platform-dashboard': 'Operator Home',
+    'platform-organisations': 'Tenant List',
+    'platform-tenant-360': selectedTenant ? `${selectedTenant.name} 360` : 'Tenant 360',
+    'identity-sso': 'SSO Providers',
+    'identity-mfa': 'MFA Policy',
+    'identity-roles': 'Roles & Permissions',
+    'platform-plans': 'Plans & Entitlements',
+    'platform-security': 'Audit & Security',
+    'platform-system': 'System & Developer'
+  };
 
   return (
     <main className="app-shell">
@@ -845,16 +1063,31 @@ export function App() {
           <button className={workspace === 'organisation' ? 'active' : ''} onClick={() => switchWorkspace('organisation')}>Organisation</button>
           <button className={workspace === 'platform' ? 'active' : ''} onClick={() => switchWorkspace('platform')} disabled={!platformAllowed}>Platform</button>
         </div>
-        <nav>
-          {Object.entries(navItems.reduce<Record<string, typeof navItems>>((groups, item) => {
-            groups[item.group] = [...(groups[item.group] ?? []), item];
-            return groups;
-          }, {})).map(([group, items]) => (
-            <div className="nav-group" key={group}>
-              <span>{group}</span>
-              {items.map((item) => <button key={item.view} className={view === item.view ? 'active' : ''} onClick={() => setView(item.view)}>{item.label}</button>)}
-            </div>
-          ))}
+        <nav className="control-nav" aria-label="Application navigation">
+          {navSections.map((section) => {
+            const expanded = expandedNavSections[section.key] ?? true;
+            return (
+              <div className={`nav-section ${expanded ? 'expanded' : 'collapsed'}`} key={section.key}>
+                <button className="nav-section-header" type="button" onClick={() => toggleNavSection(section.key)} aria-expanded={expanded}>
+                  <span>{section.label}</span>
+                  <span aria-hidden="true">{expanded ? '-' : '+'}</span>
+                </button>
+                {expanded ? (
+                  <div className="nav-section-items">
+                    {section.items.map((item) => {
+                      const active = view === item.view || (item.view === 'org-access' && view === 'identity-roles') || (item.view === 'org-identity' && (view === 'identity-sso' || view === 'identity-mfa'));
+                      return (
+                        <button key={`${section.key}-${item.label}`} className={active ? 'active' : ''} type="button" onClick={() => handleNavItem(item)} disabled={item.disabled}>
+                          <span>{item.label}</span>
+                          {item.helper ? <small>{item.helper}</small> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </nav>
         <div className="sidebar-footer">
           <span>API health</span>
@@ -865,7 +1098,7 @@ export function App() {
         <header className="topbar">
           <div>
             <span className="eyebrow">{workspace === 'platform' ? 'Platform owner' : auth.organisation.name}</span>
-            <h1>{workspace === 'platform' ? 'Platform command center' : 'Workspace command center'}</h1>
+            <h1>{pageTitles[view]}</h1>
           </div>
           <div className="topbar-actions">
             <StatusBadge value={health?.status ?? 'unknown'} />
@@ -898,6 +1131,12 @@ export function App() {
         return <OrganisationBrandingScreen />;
       case 'org-identity':
         return <OrganisationIdentity />;
+      case 'identity-sso':
+        return <OrganisationIdentity focus="sso" />;
+      case 'identity-mfa':
+        return <OrganisationIdentity focus="mfa" />;
+      case 'identity-roles':
+        return <OrganisationAccess />;
       case 'org-tokens':
         return <OrganisationTokens />;
       case 'org-files':
@@ -910,6 +1149,8 @@ export function App() {
         return <PlatformDashboard />;
       case 'platform-organisations':
         return <PlatformOrganisations />;
+      case 'platform-tenant-360':
+        return <Tenant360 />;
       case 'platform-plans':
         return <PlatformPlans />;
       case 'platform-security':
@@ -1117,38 +1358,63 @@ export function App() {
     );
   }
 
-  function OrganisationIdentity() {
+  function OrganisationIdentity({ focus = 'sso' }: { focus?: IdentityFocus } = {}) {
+    const ssoPanel = (
+      <article className={`card settings-panel ${focus === 'sso' ? 'featured' : ''}`} key="sso">
+        <SectionHeader title="SSO provider configuration" description="Connect the tenant to an OIDC provider and validate the saved configuration." action={<button className="button secondary" onClick={() => void validateSso()}>Test connection</button>} />
+        <form className="form-grid" onSubmit={saveSso}>
+          <CheckboxField label="Enable SSO" checked={ssoForm.enabled} onChange={(value) => setSsoForm({ ...ssoForm, enabled: value })} />
+          <label className="field"><span>Provider</span><select value={ssoForm.provider ?? 'keycloak'} onChange={(event) => setSsoForm({ ...ssoForm, provider: event.target.value as OrganisationSsoConfig['provider'] })}><option value="keycloak">Keycloak</option><option value="azure_ad">Azure AD</option><option value="okta">Okta</option><option value="google">Google</option><option value="custom_oidc">Custom OIDC</option></select></label>
+          <TextField label="Issuer URL" value={ssoForm.issuer_url ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, issuer_url: value })} />
+          <TextField label="Discovery URL" value={ssoForm.discovery_url ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, discovery_url: value })} />
+          <TextField label="Client ID" value={ssoForm.client_id ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, client_id: value })} />
+          <TextField label="Client secret reference" value={ssoForm.client_secret_ref ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, client_secret_ref: value })} />
+          <TextField label="Scopes" value={asArrayCsv(ssoForm.scopes)} onChange={(value) => setSsoForm({ ...ssoForm, scopes: parseCsv(value) })} />
+          <CheckboxField label="PKCE enabled" checked={ssoForm.pkce_enabled} onChange={(value) => setSsoForm({ ...ssoForm, pkce_enabled: value })} />
+          <CheckboxField label="Require verified email" checked={ssoForm.require_verified_email} onChange={(value) => setSsoForm({ ...ssoForm, require_verified_email: value })} />
+          <button className="button primary" type="submit">Save SSO</button>
+        </form>
+      </article>
+    );
+    const mfaPanel = (
+      <article className={`card settings-panel ${focus === 'mfa' ? 'featured' : ''}`} key="mfa">
+        <SectionHeader title="MFA policy" description="Define where MFA is enforced and which roles or permissions require stronger assurance." />
+        <form className="form-grid" onSubmit={saveMfa}>
+          <CheckboxField label="Enable MFA policy" checked={mfaForm.enabled} onChange={(value) => setMfaForm({ ...mfaForm, enabled: value })} />
+          <label className="field"><span>Provider</span><select value={mfaForm.provider} onChange={(event) => setMfaForm({ ...mfaForm, provider: event.target.value as MfaPolicy['provider'] })}><option value="none">None</option><option value="native">Native</option><option value="keycloak">Keycloak</option><option value="azure_ad">Azure AD</option><option value="okta">Okta</option><option value="custom_oidc">Custom OIDC</option></select></label>
+          <label className="field"><span>Enforcement</span><select value={mfaForm.enforcement_mode} onChange={(event) => setMfaForm({ ...mfaForm, enforcement_mode: event.target.value as MfaPolicy['enforcement_mode'] })}><option value="disabled">Disabled</option><option value="app_checked">App checked</option><option value="idp_enforced">IdP enforced</option></select></label>
+          <TextField label="Required roles" value={asArrayCsv(mfaForm.required_for_roles)} onChange={(value) => setMfaForm({ ...mfaForm, required_for_roles: parseCsv(value) })} />
+          <TextField label="Required permissions" value={asArrayCsv(mfaForm.required_for_permissions)} onChange={(value) => setMfaForm({ ...mfaForm, required_for_permissions: parseCsv(value) })} />
+          <button className="button primary" type="submit">Save MFA</button>
+        </form>
+      </article>
+    );
+
     return (
       <>
-        <SectionHeader eyebrow="Tenant configuration" title="SSO and MFA" description="Configure tenant-owned login security controls." />
-        <div className="two-column">
-          <article className="card">
-            <SectionHeader title="OIDC / SSO" action={<button className="button secondary" onClick={() => void validateSso()}>Test SSO config</button>} />
-            <form className="form-grid" onSubmit={saveSso}>
-              <CheckboxField label="Enable SSO" checked={ssoForm.enabled} onChange={(value) => setSsoForm({ ...ssoForm, enabled: value })} />
-              <label className="field"><span>Provider</span><select value={ssoForm.provider ?? 'keycloak'} onChange={(event) => setSsoForm({ ...ssoForm, provider: event.target.value as OrganisationSsoConfig['provider'] })}><option value="keycloak">Keycloak</option><option value="azure_ad">Azure AD</option><option value="okta">Okta</option><option value="google">Google</option><option value="custom_oidc">Custom OIDC</option></select></label>
-              <TextField label="Issuer URL" value={ssoForm.issuer_url ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, issuer_url: value })} />
-              <TextField label="Discovery URL" value={ssoForm.discovery_url ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, discovery_url: value })} />
-              <TextField label="Client ID" value={ssoForm.client_id ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, client_id: value })} />
-              <TextField label="Client secret reference" value={ssoForm.client_secret_ref ?? ''} onChange={(value) => setSsoForm({ ...ssoForm, client_secret_ref: value })} />
-              <TextField label="Scopes" value={asArrayCsv(ssoForm.scopes)} onChange={(value) => setSsoForm({ ...ssoForm, scopes: parseCsv(value) })} />
-              <CheckboxField label="PKCE enabled" checked={ssoForm.pkce_enabled} onChange={(value) => setSsoForm({ ...ssoForm, pkce_enabled: value })} />
-              <CheckboxField label="Require verified email" checked={ssoForm.require_verified_email} onChange={(value) => setSsoForm({ ...ssoForm, require_verified_email: value })} />
-              <button className="button primary" type="submit">Save SSO</button>
-            </form>
-          </article>
-          <article className="card">
-            <SectionHeader title="MFA policy" />
-            <form className="form-grid" onSubmit={saveMfa}>
-              <CheckboxField label="Enable MFA policy" checked={mfaForm.enabled} onChange={(value) => setMfaForm({ ...mfaForm, enabled: value })} />
-              <label className="field"><span>Provider</span><select value={mfaForm.provider} onChange={(event) => setMfaForm({ ...mfaForm, provider: event.target.value as MfaPolicy['provider'] })}><option value="none">None</option><option value="native">Native</option><option value="keycloak">Keycloak</option><option value="azure_ad">Azure AD</option><option value="okta">Okta</option><option value="custom_oidc">Custom OIDC</option></select></label>
-              <label className="field"><span>Enforcement</span><select value={mfaForm.enforcement_mode} onChange={(event) => setMfaForm({ ...mfaForm, enforcement_mode: event.target.value as MfaPolicy['enforcement_mode'] })}><option value="disabled">Disabled</option><option value="app_checked">App checked</option><option value="idp_enforced">IdP enforced</option></select></label>
-              <TextField label="Required roles" value={asArrayCsv(mfaForm.required_for_roles)} onChange={(value) => setMfaForm({ ...mfaForm, required_for_roles: parseCsv(value) })} />
-              <TextField label="Required permissions" value={asArrayCsv(mfaForm.required_for_permissions)} onChange={(value) => setMfaForm({ ...mfaForm, required_for_permissions: parseCsv(value) })} />
-              <button className="button primary" type="submit">Save MFA</button>
-            </form>
-          </article>
-        </div>
+        <SectionHeader eyebrow="Identity" title="SSO and MFA settings" description="Configure tenant-owned login controls with validation and clear policy status." />
+        <section className="settings-layout">
+          <aside className="settings-nav">
+            <button className={focus === 'sso' ? 'active' : ''} type="button" onClick={() => setView('identity-sso')}>SSO Providers</button>
+            <button className={focus === 'mfa' ? 'active' : ''} type="button" onClick={() => setView('identity-mfa')}>MFA Policy</button>
+            <button type="button" onClick={() => setView('org-access')}>Roles & Permissions</button>
+          </aside>
+          <div className="settings-main">
+            {focus === 'mfa' ? [mfaPanel, ssoPanel] : [ssoPanel, mfaPanel]}
+          </div>
+          <aside className="card settings-status">
+            <SectionHeader title="Validation status" />
+            <dl className="details-list">
+              <div><dt>Login method</dt><dd>{authConfig?.login_method ?? 'mixed'}</dd></div>
+              <div><dt>SSO provider</dt><dd>{ssoForm.provider ?? 'Not configured'}</dd></div>
+              <div><dt>SSO validation</dt><dd><StatusBadge value={ssoConfigData?.validation.status ?? 'Not tested'} tone={ssoConfigData?.validation.valid ? 'good' : 'neutral'} /></dd></div>
+              <div><dt>MFA policy</dt><dd><StatusBadge value={mfaForm.enabled} tone={mfaForm.enabled ? 'good' : 'neutral'} /></dd></div>
+              <div><dt>Enforcement</dt><dd>{mfaForm.enforcement_mode}</dd></div>
+            </dl>
+            {ssoConfigData?.validation.errors.length ? <div className="notice error">{ssoConfigData.validation.errors.join(' ')}</div> : null}
+            {mfaData?.operational_notes?.length ? <div className="notice info">{mfaData.operational_notes.join(' ')}</div> : null}
+          </aside>
+        </section>
       </>
     );
   }
@@ -1243,16 +1509,19 @@ export function App() {
 
   function PlatformDashboard() {
     const activeOrgs = platformOrganisations.filter((organisation) => organisation.status === 'active').length;
+    const suspendedOrgs = platformOrganisations.filter((organisation) => organisation.status === 'suspended').length;
+    const highSecurityEvents = platformSecurityEvents.filter((event) => ['critical', 'high'].includes(event.severity)).length;
     return (
       <>
         <section className="dashboard-hero platform">
           <div>
-            <span className="eyebrow">Platform owner</span>
-            <h2>Operate every tenant, plan, and security signal from one place.</h2>
-            <p>A global command surface for organisations, entitlement defaults, system readiness, and cross-tenant audit visibility.</p>
+            <span className="eyebrow">Operator Home</span>
+            <h2>Run the platform from a calm control surface.</h2>
+            <p>Track readiness, tenants, security activity, and the handful of things that need a human decision today.</p>
             <div className="hero-actions">
-              <button className="button primary" onClick={() => setView('platform-organisations')}>Create organisation</button>
-              <button className="button secondary" onClick={() => setView('platform-plans')}>Manage plans</button>
+              <button className="button primary" onClick={() => setView('platform-organisations')}>Create tenant</button>
+              <button className="button secondary" onClick={() => selectedTenant ? openTenant360(selectedTenant) : setView('platform-organisations')} disabled={!selectedTenant}>Open Tenant 360</button>
+              <button className="button ghost" onClick={() => setView('identity-sso')}>Review identity</button>
             </div>
           </div>
           <div className="hero-status-panel">
@@ -1268,21 +1537,59 @@ export function App() {
               <span>Readiness</span>
               <StatusBadge value={readiness?.status ?? 'Unknown'} />
             </div>
-            <div className="showcase-table compact">
-              <div><span>Audit</span><strong>{platformAuditLogs.length} rows</strong></div>
-              <div><span>Security</span><strong>{platformSecurityEvents.length} events</strong></div>
+            <div className="readiness-strip">
+              <div><span>Suspended</span><strong>{suspendedOrgs}</strong></div>
+              <div><span>Security signals</span><strong>{highSecurityEvents}</strong></div>
             </div>
           </div>
         </section>
         <div className="metric-grid">
           <MetricCard label="Organisations" value={platformOrganisations.length} />
           <MetricCard label="Active tenants" value={activeOrgs} />
-          <MetricCard label="Suspended tenants" value={platformOrganisations.filter((organisation) => organisation.status === 'suspended').length} />
+          <MetricCard label="Suspended tenants" value={suspendedOrgs} />
           <MetricCard label="Plans" value={planCatalogue?.plans.length ?? 0} />
         </div>
-        <div className="two-column">
-          <article className="card"><SectionHeader title="Recent platform audit" /><AuditTable rows={platformAuditLogs.slice(0, 5)} /></article>
-          <article className="card"><SectionHeader title="Recent platform security" /><SecurityTable rows={platformSecurityEvents.slice(0, 5)} /></article>
+        <div className="operator-grid">
+          <article className="card attention-card">
+            <SectionHeader title="Needs attention" description="Derived from readiness, tenant status, and high-severity platform security events." />
+            {attentionItems.length ? (
+              <div className="attention-list">
+                {attentionItems.map((item) => <div key={item}><StatusBadge value="Review" tone="warn" /><span>{item}</span></div>)}
+              </div>
+            ) : <EmptyState title="No urgent items" message="Readiness and tenant status look clear from the available platform signals." />}
+          </article>
+          <article className="card activity-card">
+            <SectionHeader title="Recent platform activity" action={<button className="button tiny ghost" onClick={() => setView('platform-security')}>View all</button>} />
+            {platformAuditLogs.length ? (
+              <div className="activity-list">
+                {platformAuditLogs.slice(0, 6).map((record) => (
+                  <div key={record.id} className="activity-row">
+                    <span>{record.action}</span>
+                    <strong>{record.resource_type}</strong>
+                    <small>{formatDate(record.created_at ?? record.createdAt)}</small>
+                  </div>
+                ))}
+              </div>
+            ) : <EmptyState title="No recent activity" message="Platform audit events will appear after administrative actions." />}
+          </article>
+          <article className="card quick-actions-card">
+            <SectionHeader title="Quick actions" />
+            <div className="quick-actions">
+              <button className="button primary" onClick={() => setView('platform-organisations')}>Create tenant</button>
+              <button className="button secondary" onClick={() => setView('platform-plans')}>Manage plans</button>
+              <button className="button secondary" onClick={() => setView('identity-mfa')}>Review MFA policy</button>
+              <button className="button ghost" onClick={() => setView('platform-system')}>Open system view</button>
+            </div>
+          </article>
+          <article className="card">
+            <SectionHeader title="Readiness detail" />
+            <dl className="details-list">
+              <div><dt>API health</dt><dd><StatusBadge value={health?.status ?? 'Unknown'} /></dd></div>
+              <div><dt>Readiness</dt><dd><StatusBadge value={readiness?.status ?? 'Unknown'} /></dd></div>
+              <div><dt>API base</dt><dd>{apiBaseUrl.replace(/^https?:\/\//, '')}</dd></div>
+              <div><dt>Security events</dt><dd>{platformSecurityEvents.length}</dd></div>
+            </dl>
+          </article>
         </div>
       </>
     );
@@ -1291,28 +1598,192 @@ export function App() {
   function PlatformOrganisations() {
     return (
       <>
-        <SectionHeader eyebrow="Tenant management" title="Organisations" description="Create, activate and suspend tenants from the platform workspace." />
-        <article className="card">
+        <SectionHeader eyebrow="Tenants" title="Tenant List" description="Search, create, activate, suspend, and open Tenant 360 from one calm list." action={<button className="button secondary" onClick={() => setTenantSearch('')}>Clear search</button>} />
+        <article className="card tenant-create-card">
+          <SectionHeader title="Create tenant" description="Creates a platform organisation using the existing backend route." />
           <form className="form-grid" onSubmit={createOrg}>
             <TextField label="Organisation name" value={platformOrganisationForm.name} onChange={(value) => setPlatformOrganisationForm({ ...platformOrganisationForm, name: value })} />
             <TextField label="Slug" value={platformOrganisationForm.slug} onChange={(value) => setPlatformOrganisationForm({ ...platformOrganisationForm, slug: value })} />
             <label className="field"><span>Status</span><select value={platformOrganisationForm.status} onChange={(event) => setPlatformOrganisationForm({ ...platformOrganisationForm, status: event.target.value })}><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
-            <button className="button primary" type="submit">Create organisation</button>
+            <button className="button primary" type="submit">Create tenant</button>
           </form>
         </article>
         <article className="card">
+          <div className="tenant-list-toolbar">
+            <TextField label="Search tenants" value={tenantSearch} onChange={setTenantSearch} placeholder="Name, slug, status, or plan" />
+            <div className="tenant-list-summary">
+              <strong>{filteredTenants.length}</strong>
+              <span>shown of {platformOrganisations.length}</span>
+            </div>
+          </div>
           <DataTable
-            rows={platformOrganisations}
+            rows={filteredTenants}
             emptyTitle="No organisations"
-            emptyMessage="Seed or create organisations to manage the platform."
+            emptyMessage="Seed, create, or adjust the search to find tenants."
             columns={[
               { label: 'Organisation', render: (row) => <div><strong>{row.name}</strong><small>{row.slug}</small></div> },
               { label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
-              { label: 'ID', render: (row) => shortId(row.id || row._id || '') },
-              { label: 'Actions', render: (row) => <div className="row-actions"><button className="button tiny" onClick={() => { setSelectedPlanOrgId(row.id || row._id || ''); setView('platform-plans'); }}>Assign plan</button><button className="button tiny ghost" onClick={() => void changeOrgStatus(row, row.status === 'suspended' ? 'active' : 'suspended')}>{row.status === 'suspended' ? 'Activate' : 'Suspend'}</button></div> }
+              { label: 'Plan', render: (row) => readPlanKey(row) },
+              { label: 'Health', render: (row) => {
+                const healthStatus = deriveTenantHealth(row, platformSecurityEvents.filter((event) => event.organisation_id === getTenantId(row)));
+                return <StatusBadge value={healthStatus.label} tone={healthStatus.tone} />;
+              } },
+              { label: 'ID', render: (row) => shortId(getTenantId(row)) },
+              { label: 'Actions', render: (row) => <div className="row-actions"><button className="button tiny" onClick={() => openTenant360(row)}>Open 360</button><button className="button tiny ghost" onClick={() => openPlanManagement(row)}>Assign plan</button><button className="button tiny ghost" onClick={() => void changeOrgStatus(row, row.status === 'suspended' ? 'active' : 'suspended')}>{row.status === 'suspended' ? 'Activate' : 'Suspend'}</button></div> }
             ]}
           />
         </article>
+      </>
+    );
+  }
+
+  function Tenant360() {
+    const tenant = selectedTenant;
+    const healthStatus = deriveTenantHealth(tenant, tenantSecurityEvents);
+    const identityStatus = deriveIdentityStatus(tenant);
+    const planName = readPlanName(tenantPlan) !== 'Unassigned' ? readPlanName(tenantPlan) : tenant ? readPlanKey(tenant) : 'Unassigned';
+
+    if (!tenant) {
+      return (
+        <article className="card">
+          <EmptyState title="Select a tenant" message="Open a tenant from Tenant List to load plan, users, audit, and security context." />
+          <div className="hero-actions"><button className="button primary" onClick={() => setView('platform-organisations')}>Go to Tenant List</button></div>
+        </article>
+      );
+    }
+
+    return (
+      <>
+        <section className="tenant-hero">
+          <div>
+            <span className="eyebrow">Tenant 360</span>
+            <h2>{tenant.name}</h2>
+            <p>{tenant.slug} / {shortId(getTenantId(tenant))}</p>
+            <div className="hero-actions">
+              <button className="button primary" onClick={() => void changeOrgStatus(tenant, tenant.status === 'suspended' ? 'active' : 'suspended')}>{tenant.status === 'suspended' ? 'Reactivate tenant' : 'Suspend tenant'}</button>
+              <button className="button secondary" onClick={() => openPlanManagement(tenant)}>Manage billing</button>
+              <button className="button ghost" disabled>Impersonation later</button>
+              <button className="button ghost" disabled>Reset MFA later</button>
+            </div>
+          </div>
+          <div className="tenant-hero-panel">
+            <label className="field">
+              <span>Selected tenant</span>
+              <select value={selectedTenantId} onChange={(event) => { setSelectedTenantId(event.target.value); setTenantTab('overview'); }}>
+                {platformOrganisations.map((organisation) => <option key={getTenantId(organisation)} value={getTenantId(organisation)}>{organisation.name}</option>)}
+              </select>
+            </label>
+            <div className="tenant-status-grid">
+              <div><span>Status</span><StatusBadge value={tenant.status} /></div>
+              <div><span>Health</span><StatusBadge value={healthStatus.label} tone={healthStatus.tone} /></div>
+              <div><span>Plan</span><strong>{planName}</strong></div>
+              <div><span>Identity</span><StatusBadge value={identityStatus.label} tone={identityStatus.tone} /></div>
+            </div>
+          </div>
+        </section>
+
+        <div className="tenant-tabs" role="tablist" aria-label="Tenant 360 sections">
+          {(['overview', 'users', 'security', 'billing'] as TenantTab[]).map((tab) => (
+            <button key={tab} className={tenantTab === tab ? 'active' : ''} type="button" onClick={() => setTenantTab(tab)}>
+              {tab[0].toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {tenantLoading ? <div className="notice info">Loading tenant data...</div> : null}
+
+        {tenantTab === 'overview' ? (
+          <>
+            <div className="metric-grid tenant-metric-grid">
+              <MetricCard label="Tenant health" value={healthStatus.label} hint={tenant.status} />
+              <MetricCard label="Users" value={tenantUsers.length} hint="Tenant-scoped API read" />
+              <MetricCard label="Plan" value={planName} hint={readBillingMode(tenantPlan)} />
+              <MetricCard label="Security events" value={tenantSecurityEvents.length} hint="Recent tenant signals" />
+            </div>
+            <div className="tenant-overview-grid">
+              <article className="card">
+                <SectionHeader title="Plan and usage" description="Backed by the tenant plan assignment endpoint." />
+                <dl className="details-list">
+                  <div><dt>Plan</dt><dd>{planName}</dd></div>
+                  <div><dt>Billing mode</dt><dd>{readBillingMode(tenantPlan)}</dd></div>
+                  <div><dt>Subscription</dt><dd>{tenantPlan?.plan_assignment?.subscription_status ?? 'Not configured'}</dd></div>
+                  <div><dt>Features</dt><dd>{countPlanFeatures(tenantPlan)}</dd></div>
+                  <div><dt>Limits</dt><dd>{countPlanLimits(tenantPlan)}</dd></div>
+                </dl>
+              </article>
+              <article className="card">
+                <SectionHeader title="Identity status" description="Derived from tenant auth and MFA configuration where available." />
+                <dl className="details-list">
+                  <div><dt>Posture</dt><dd><StatusBadge value={identityStatus.label} tone={identityStatus.tone} /></dd></div>
+                  <div><dt>SSO enforced</dt><dd>{String(Boolean(tenant.auth_config?.enforce_sso || tenant.auth_config?.sso_enabled))}</dd></div>
+                  <div><dt>MFA enforced</dt><dd>{String(Boolean(tenant.mfa_config?.enabled || tenant.auth_config?.enforce_mfa))}</dd></div>
+                  <div><dt>Provider</dt><dd>{String(tenant.auth_config?.provider ?? 'Native or not configured')}</dd></div>
+                </dl>
+              </article>
+              <article className="card">
+                <SectionHeader title="Recent security" action={<button className="button tiny ghost" onClick={() => setTenantTab('security')}>Open security</button>} />
+                {tenantSecurityEvents.length ? (
+                  <div className="activity-list">
+                    {tenantSecurityEvents.slice(0, 5).map((event) => (
+                      <div key={event.id} className="activity-row">
+                        <span>{event.event_type}</span>
+                        <StatusBadge value={event.severity} tone={eventTone(event.severity)} />
+                        <small>{formatDate(event.created_at ?? event.createdAt)}</small>
+                      </div>
+                    ))}
+                  </div>
+                ) : <EmptyState title="No recent security events" message="Tenant security events will appear here when available." />}
+              </article>
+              <article className="card support-card">
+                <SectionHeader title="Support notes" description="Placeholder for a later support case or customer-success integration." />
+                <EmptyState title="Support notes later" message="No support notes backend exists yet, so this action is intentionally disabled." />
+                <button className="button ghost" disabled>Add note later</button>
+              </article>
+            </div>
+          </>
+        ) : null}
+
+        {tenantTab === 'users' ? (
+          <article className="card">
+            <SectionHeader title="Tenant users" description="Read from the existing platform tenant users endpoint." />
+            <DataTable
+              rows={tenantUsers}
+              emptyTitle="No users"
+              emptyMessage="Tenant users will appear after creation or invitation."
+              columns={[
+                { label: 'User', render: (row) => <div><strong>{row.display_name || row.email}</strong><small>{row.email}</small></div> },
+                { label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+                { label: 'Roles', render: (row) => row.role_ids.length },
+                { label: 'Created', render: (row) => formatDate(row.createdAt) }
+              ]}
+            />
+          </article>
+        ) : null}
+
+        {tenantTab === 'security' ? (
+          <div className="two-column">
+            <article className="card"><SectionHeader title="Tenant audit logs" /><AuditTable rows={tenantAuditLogs} /></article>
+            <article className="card"><SectionHeader title="Tenant security events" /><SecurityTable rows={tenantSecurityEvents} /></article>
+          </div>
+        ) : null}
+
+        {tenantTab === 'billing' ? (
+          <div className="two-column">
+            <article className="card">
+              <SectionHeader title="Billing and plan" description="Current plan assignment and feature summary from the platform plan endpoint." action={<button className="button secondary" onClick={() => openPlanManagement(tenant)}>Manage plan</button>} />
+              <dl className="details-list">
+                <div><dt>Plan</dt><dd>{planName}</dd></div>
+                <div><dt>Billing mode</dt><dd>{readBillingMode(tenantPlan)}</dd></div>
+                <div><dt>Subscription</dt><dd>{tenantPlan?.plan_assignment?.subscription_status ?? 'Not configured'}</dd></div>
+                <div><dt>Assigned</dt><dd>{formatDate(tenantPlan?.plan_assignment?.assigned_at)}</dd></div>
+              </dl>
+            </article>
+            <article className="card">
+              <SectionHeader title="Plan payload" description="Raw plan details for development visibility." />
+              <pre className="json-block">{jsonPreview(tenantPlan?.plan ?? {})}</pre>
+            </article>
+          </div>
+        ) : null}
       </>
     );
   }

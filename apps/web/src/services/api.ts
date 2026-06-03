@@ -569,6 +569,10 @@ export async function getOrganisationPlan(token: string): Promise<OrganisationPl
   return apiData<OrganisationPlanResponse>('/org/plan', token);
 }
 
+export async function getPlatformOrganisationPlan(token: string, organisationId: string): Promise<OrganisationPlanResponse> {
+  return apiData<OrganisationPlanResponse>(`/platform/organisations/${organisationId}/plan`, token);
+}
+
 export async function getOrganisationFiles(token: string): Promise<FileListResponse> {
   return apiData<FileListResponse>('/org/files', token);
 }
@@ -601,6 +605,16 @@ export async function getPlatformAuditLogs(token: string, query = '?limit=50'): 
 
 export async function getPlatformSecurityEvents(token: string, query = '?limit=50'): Promise<{ records: SecurityEventRecord[]; pagination?: Pagination }> {
   const envelope = await apiEnvelope<SecurityEventRecord[]>(`/platform/security-events${query}`, token);
+  return { records: envelope.data ?? [], pagination: envelope.pagination };
+}
+
+export async function getPlatformOrganisationAuditLogs(token: string, organisationId: string, query = '?limit=50'): Promise<{ records: AuditLogRecord[]; pagination?: Pagination }> {
+  const envelope = await apiEnvelope<AuditLogRecord[]>(`/platform/organisations/${organisationId}/audit-logs${query}`, token);
+  return { records: envelope.data ?? [], pagination: envelope.pagination };
+}
+
+export async function getPlatformOrganisationSecurityEvents(token: string, organisationId: string, query = '?limit=50'): Promise<{ records: SecurityEventRecord[]; pagination?: Pagination }> {
+  const envelope = await apiEnvelope<SecurityEventRecord[]>(`/platform/organisations/${organisationId}/security-events${query}`, token);
   return { records: envelope.data ?? [], pagination: envelope.pagination };
 }
 
