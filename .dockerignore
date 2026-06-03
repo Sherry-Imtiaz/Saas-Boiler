@@ -1,0 +1,11 @@
+node_modules
+apps/*/node_modules
+apps/*/dist
+apps/*/.vercel
+.git
+.qa
+logs
+coverage
+*.tsbuildinfo
+.env
+.env.local

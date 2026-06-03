@@ -1,4 +1,54 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: saas_boilerplate_api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      API_BASE_PATH: /api
+      MONGODB_URI: mongodb://mongo:27017/saas_boilerplate
+      CORS_ORIGIN: http://localhost:5173
+      JWT_SECRET: local-docker-jwt-secret-change-before-production-123456
+      JWT_EXPIRES_IN_SECONDS: 3600
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_ROOT: /app/apps/api/storage
+      OIDC_STATE_SECRET: local-docker-oidc-state-secret-change-before-production
+      OIDC_STATE_EXPIRES_IN_SECONDS: 600
+      OIDC_HTTP_TIMEOUT_MS: 5000
+      OIDC_FRONTEND_CALLBACK_URL: http://localhost:5173/auth/sso/callback
+      OIDC_ALLOW_PLAIN_CLIENT_SECRET: "false"
+      SEED_ORGANISATION_NAME: Demo Organisation
+      SEED_ORGANISATION_SLUG: demo-organisation
+      SEED_ORGANISATION_DOMAIN: example.com
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: ChangeMe123!
+      SEED_ADMIN_FIRST_NAME: Demo
+      SEED_ADMIN_LAST_NAME: Admin
+      SEED_PLAN_KEY: professional
+      SEED_FORCE_ADMIN_PASSWORD_RESET: "false"
+    volumes:
+      - api_storage:/app/apps/api/storage
+    depends_on:
+      - mongo
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000/api
+    container_name: saas_boilerplate_web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
   mongo:
     image: mongo:7
     container_name: saas_boilerplate_mongo
@@ -32,5 +82,6 @@ services:
       - azurite_data:/data
 
 volumes:
+  api_storage:
   mongo_data:
   azurite_data:
